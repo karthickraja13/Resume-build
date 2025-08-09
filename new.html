@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Resume Builder + Scoring</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#071021; --panel:rgba(255,255,255,0.03); --muted:#9aa4b2; --accent:#7c4dff;
+    --success:#4ade80; --warn:#f59e0b; --danger:#fb7185;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial;background:linear-gradient(180deg,#04101a 0%, #071021 100%);color:#e6eef8}
+  .app{display:grid;grid-template-columns:380px 1fr;gap:18px;padding:18px;height:calc(100vh - 36px)}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;backdrop-filter: blur(6px);box-shadow:0 12px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03);overflow:auto}
+  .brand{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+  .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#00d4ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:800}
+  h2{margin:10px 0 6px;font-size:15px}
+  label{display:block;font-size:13px;color:var(--muted);margin-top:10px}
+  input[type=text], input[type=url], input[type=number], textarea, select, input[type=color] {
+    width:100%;padding:9px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;margin-top:6px;font-size:14px;
+  }
+  textarea{min-height:64px;resize:vertical}
+  .row{display:flex;gap:8px}
+  .muted{color:var(--muted);font-size:13px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent),#00d4ff);color:#041025;font-weight:700;cursor:pointer;margin-top:10px}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .pill{padding:6px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted);cursor:pointer}
+  .list{margin-top:12px}
+  .item{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));border-radius:10px;padding:8px;margin-top:8px;border:1px solid rgba(255,255,255,0.02)}
+  .small-action{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px}
+  .score-wrap{display:flex;gap:12px;align-items:center}
+  .gauge{width:96px;height:96px;border-radius:999px;display:grid;place-items:center;font-weight:800}
+  .score-breakdown{font-size:13px;color:var(--muted);margin-top:8px}
+  /* canvas */
+  .preview-wrap{display:flex;align-items:center;justify-content:center}
+  .canvas-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+  canvas{border-radius:12px;box-shadow:0 20px 60px rgba(2,6,23,0.6);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
+  .topbar{display:flex;gap:8px;align-items:center}
+  .template-card{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+  .template-card.selected{outline:2px solid rgba(124,77,255,0.14);box-shadow:0 8px 24px rgba(124,77,255,0.06)}
+  footer{margin-top:14px;color:var(--muted);font-size:12px}
+  @media (max-width:980px){.app{grid-template-columns:1fr 1fr;grid-auto-rows:1fr}.panel{height:calc(50vh - 36px)}}
+  @media (max-width:680px){.app{grid-template-columns:1fr;height:auto}.panel{height:auto;max-height:50vh}}
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel" id="controls">
+
+      <div class="brand"><div class="logo">Top1</div><div><div style="font-weight:800">Top-1 Resume Builder</div><div class="muted">Heuristic scoring + ATS export</div></div></div>
+
+      <div class="topbar" style="justify-content:space-between;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="template-card selected" data-template="top1" id="tpl-top1"><strong>Top-1 (Recommended)</strong><div class="muted" style="font-size:12px">Hybrid: ATS + Design</div></div>
+          <div class="template-card" data-template="visual" id="tpl-visual"><strong>Hi-Tech Visual</strong><div class="muted" style="font-size:12px">Canvas-heavy</div></div>
+          <div class="template-card" data-template="ats" id="tpl-ats"><strong>ATS-Friendly</strong><div class="muted" style="font-size:12px">Plain HTML</div></div>
+        </div>
+
+        <div class="score-wrap">
+          <div id="gauge" class="gauge" style="background:conic-gradient(var(--accent) 0% 0%, rgba(255,255,255,0.04) 0%);">0</div>
+          <div style="min-width:160px">
+            <div style="font-weight:800" id="scoreLabel">Score: 0</div>
+            <div class="muted" style="font-size:13px" id="scoreAdvice">Fill fields to compute score</div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Profile</h2>
+      <label>Photo <input id="photo" type="file" accept="image/*"></label>
+      <div class="row">
+        <input id="name" type="text" placeholder="Full name" value="Alex Morgan">
+        <input id="headline" type="text" placeholder="Headline" value="Senior Frontend Engineer">
+      </div>
+      <label>LinkedIn <input id="linkedin" type="url" placeholder="https://linkedin.com/in/..." value="https://linkedin.com/in/alexmorgan"></label>
+      <div class="row">
+        <input id="email" type="text" placeholder="email" value="alex@example.com">
+        <input id="phone" type="text" placeholder="phone" value="+91 98765 43210">
+      </div>
+      <label>Location <input id="location" type="text" placeholder="City, Country" value="Bengaluru, India"></label>
+      <label>Summary <textarea id="summary">Design craftsman and frontend engineer with a love for pixel-perfect interfaces and scalable components.</textarea></label>
+
+      <h2>Education</h2>
+      <div class="row">
+        <input id="school" type="text" placeholder="School" value="National Institute of Design">
+        <input id="degree" type="text" placeholder="Degree" value="B.Des — Interaction Design">
+      </div>
+      <label>Years <input id="eduYears" type="text" value="2014 — 2018"></label>
+
+      <h2>Experience</h2>
+      <div id="expList" class="list"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="addExp" class="pill">+ Add Experience</button>
+        <button id="addCoExp" class="pill">+ Add Co-Experience to Last</button>
+      </div>
+
+      <h2>Skills</h2>
+      <div id="skillList" class="list"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button id="addSkill" class="pill">+ Add Skill</button>
+        <label style="margin-left:auto">Accent <input id="theme" type="color" value="#7c4dff" style="margin-left:8px"></label>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="optimizeBtn" class="btn">Optimize Suggestions</button>
+        <button id="exportATS" class="btn ghost">Export ATS HTML</button>
+        <button id="downloadPNG" class="btn ghost">Download PNG</button>
+      </div>
+
+      <div id="suggestions" class="score-breakdown"></div>
+      <footer>Score is a heuristic (completeness, metrics, skills, ATS friendliness). Use suggestions to improve content; export ATS HTML for job boards.</footer>
+    </div>
+
+    <div class="preview-wrap">
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="980" height="1280" style="width:920px;height:1200px"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- jsPDF for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/* Top-1 Resume Builder — combined canvas UI + scoring & ATS export
+   Save as top1-resume-builder.html and open in browser
+*/
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const gaugeEl = document.getElementById('gauge');
+const scoreLabel = document.getElementById('scoreLabel');
+const scoreAdvice = document.getElementById('scoreAdvice');
+const suggestionsEl = document.getElementById('suggestions');
+
+const state = {
+  template: 'top1',
+  profile: { name:'Alex Morgan', headline:'Senior Frontend Engineer', linkedin:'https://linkedin.com/in/alexmorgan', email:'alex@example.com', phone:'+91 98765 43210', location:'Bengaluru, India', summary:'Design craftsman and frontend engineer with a love for pixel-perfect interfaces and scalable components.', photo:null },
+  education: { school:'National Institute of Design', degree:'B.Des — Interaction Design', years:'2014 — 2018' },
+  experiences: [
+    { id: genId(), role:'Senior Product Designer', company:'Example Inc', years:'2021 — Present', desc:'Led product design across web and mobile. Improved retention by 18%.', co: null }
+  ],
+  skills: [{ id: genId(), name:'Figma', level:88 }, { id: genId(), name:'React', level:82 }, { id: genId(), name:'HTML/CSS', level:94 }],
+  theme: '#7c4dff',
+  animTick: 0
+};
+
+function genId(){ return 'id_'+Math.random().toString(36).slice(2,9); }
+
+/* ---------- templates selector ---------- */
+document.querySelectorAll('.template-card').forEach(el=>{
+  el.addEventListener('click', ()=> {
+    document.querySelectorAll('.template-card').forEach(x=>x.classList.remove('selected'));
+    el.classList.add('selected');
+    state.template = el.dataset.template;
+    requestRender();
+    computeAndDisplayScore();
+  });
+});
+
+/* ---------- build lists ---------- */
+const expListEl = document.getElementById('expList'), skillListEl = document.getElementById('skillList');
+
+function createExpItem(exp){
+  const div = document.createElement('div'); div.className='item'; div.dataset.id = exp.id;
+  div.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="small" data-key="role" value="${escapeHtml(exp.role)}" placeholder="Role">
+      <input class="small" data-key="company" value="${escapeHtml(exp.company)}" placeholder="Company">
+      <input class="small" data-key="years" style="width:120px" value="${escapeHtml(exp.years)}" placeholder="Years">
+      <button class="small-action" data-act="remove">✕</button>
+    </div>
+    <label class="muted">Description</label>
+    <textarea data-key="desc">${escapeHtml(exp.desc || '')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="pill small-action" data-act="addCo">+ Co-Experience</button>
+      ${exp.co ? `<button class="pill small-action" data-act="removeCo">Remove Co</button>` : ''}
+    </div>
+  `;
+  div.querySelectorAll('[data-key]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const k = inp.dataset.key;
+      exp[k] = inp.value;
+      requestRender(); computeAndDisplayScore();
+    });
+  });
+  div.querySelector('[data-act="remove"]')?.addEventListener('click', ()=>{
+    state.experiences = state.experiences.filter(e=>e.id!==exp.id);
+    renderLists(); requestRender(); computeAndDisplayScore();
+  });
+  div.querySelector('[data-act="addCo"]')?.addEventListener('click', ()=>{
+    if(!exp.co){ exp.co = { role:'Co-role', company:'Co-company', years:'2020 — 2021', desc:'Co-experience summary' }; renderLists(); requestRender(); computeAndDisplayScore(); }
+  });
+  div.querySelector('[data-act="removeCo"]')?.addEventListener('click', ()=>{
+    exp.co = null; renderLists(); requestRender(); computeAndDisplayScore();
+  });
+  return div;
+}
+
+function createSkillItem(skill){
+  const div = document.createElement('div'); div.className='item'; div.dataset.id = skill.id;
+  div.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="small" data-key="name" value="${escapeHtml(skill.name)}" placeholder="Skill">
+      <input class="small" type="number" data-key="level" value="${skill.level}" min="0" max="100" style="width:92px">
+      <button class="small-action" data-act="remove">✕</button>
+    </div>
+  `;
+  div.querySelectorAll('[data-key]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const key=inp.dataset.key;
+      skill[key] = (key==='level')? Math.max(0, Math.min(100, parseInt(inp.value||0))) : inp.value;
+      requestRender(); computeAndDisplayScore();
+    });
+  });
+  div.querySelector('[data-act="remove"]')?.addEventListener('click', ()=>{
+    state.skills = state.skills.filter(s=>s.id!==skill.id);
+    renderLists(); requestRender(); computeAndDisplayScore();
+  });
+  return div;
+}
+
+function renderLists(){
+  expListEl.innerHTML=''; skillListEl.innerHTML='';
+  state.experiences.forEach(e=>expListEl.appendChild(createExpItem(e)));
+  state.skills.forEach(s=>skillListEl.appendChild(createSkillItem(s)));
+}
+
+/* add buttons */
+document.getElementById('addExp').addEventListener('click', ()=>{
+  state.experiences.push({ id: genId(), role:'New Role', company:'Company', years:'Year — Year', desc:'Short description', co: null });
+  renderLists(); requestRender(); computeAndDisplayScore();
+});
+document.getElementById('addCoExp').addEventListener('click', ()=>{
+  const last = state.experiences[state.experiences.length-1];
+  if(last){ if(!last.co) last.co = { role:'Co-role', company:'Co-company', years:'Year — Year', desc:'Co experience' }; renderLists(); requestRender(); computeAndDisplayScore(); }
+});
+document.getElementById('addSkill').addEventListener('click', ()=>{ state.skills.push({ id: genId(), name:'New Skill', level:60 }); renderLists(); requestRender(); computeAndDisplayScore(); });
+
+/* wire profile inputs */
+['name','headline','linkedin','email','phone','location','summary','school','degree','eduYears'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('input', ()=> {
+    const v = el.value;
+    if(id in state.profile) state.profile[id] = v;
+    else if(id==='school') state.education.school = v;
+    else if(id==='degree') state.education.degree = v;
+    else if(id==='eduYears') state.education.years = v;
+    requestRender(); computeAndDisplayScore();
+  });
+});
+
+/* photo upload */
+document.getElementById('photo').addEventListener('change', e=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    const img = new Image();
+    img.onload = ()=>{ state.profile.photo = img; requestRender(); computeAndDisplayScore(); };
+    img.src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+});
+
+/* theme */
+document.getElementById('theme').addEventListener('input', e=>{ state.theme = e.target.value; requestRender(); computeAndDisplayScore(); });
+
+/* optimize button (apply small suggestions) */
+document.getElementById('optimizeBtn').addEventListener('click', ()=>{
+  const suggestions = generateSuggestionsDetailed();
+  // Apply a few safe auto-fixes: expand summary if too short, ensure LinkedIn present
+  if(suggestions.some(s=>s.code==='SUMMARY_SHORT')){
+    state.profile.summary = state.profile.summary.trim() + ' Passionate leader who delivers measurable outcomes: increased retention by 18% and reduced load time by 35%.';
+  }
+  if(suggestions.some(s=>s.code==='NO_LINKEDIN')){
+    state.profile.linkedin = state.profile.linkedin || 'https://linkedin.com/in/yourprofile';
+  }
+  if(suggestions.some(s=>s.code==='LACK_METRICS')){
+    // add small metrics to first experience if missing
+    const ex = state.experiences[0];
+    if(ex && !/\d/.test(ex.desc)) ex.desc += ' Delivered features that impacted 200k+ users and improved NPS by 12%.';
+  }
+  renderLists(); requestRender(); computeAndDisplayScore();
+});
+
+/* export ATS HTML */
+document.getElementById('exportATS').addEventListener('click', ()=>{
+  const html = generateAtsHtml();
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${state.profile.name.replace(/\s+/g,'_')}_ATS.html`; a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* download PNG */
+document.getElementById('downloadPNG').addEventListener('click', ()=>{
+  requestRender();
+  setTimeout(()=>{ const url = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = `${state.profile.name.replace(/\s+/g,'_')}.png`; a.click(); }, 120);
+});
+
+/* ---------- scoring heuristic ---------- */
+function computeScore(){
+  // Weights
+  const weights = { completeness: 30, experience: 25, skills: 15, summary: 15, ats: 15 };
+  let score = 0;
+  const details = {};
+
+  // completeness: name,headline,(email or phone),linkedin,summary,education (school+degree),at least one experience
+  const reqs = [
+    {k:'name', ok: !!state.profile.name.trim()},
+    {k:'headline', ok: !!state.profile.headline.trim()},
+    {k:'contact', ok: !!(state.profile.email.trim() || state.profile.phone.trim())},
+    {k:'linkedin', ok: !!state.profile.linkedin.trim()},
+    {k:'summary', ok: !!state.profile.summary.trim()},
+    {k:'education', ok: !!(state.education.school.trim() && state.education.degree.trim())},
+    {k:'experience', ok: state.experiences.length>0}
+  ];
+  const okCount = reqs.filter(r=>r.ok).length;
+  const completenessScore = (okCount/reqs.length) * weights.completeness;
+  details.completeness = Math.round(completenessScore);
+
+  // experience quality: count, metrics presence, action verbs
+  const exCount = state.experiences.length;
+  const exCountFactor = Math.min(exCount,5)/5; // up to 5 for full
+  let metricsFound = 0;
+  let actionFound = 0;
+  const actionVerbs = ['led','managed','improved','increased','reduced','built','launched','designed','developed','optimized','implemented','drove','ship','shiped','delivered'];
+  state.experiences.forEach(ex=>{
+    if(/\d+/.test(ex.desc)) metricsFound++;
+    const low = (ex.desc||'').toLowerCase();
+    if(actionVerbs.some(v=>low.includes(v))) actionFound++;
+    if(ex.co && /\d+/.test(ex.co.desc||'')) metricsFound++;
+    if(ex.co && actionVerbs.some(v=> (ex.co.desc||'').toLowerCase().includes(v))) actionFound++;
+  });
+  const metricsFactor = state.experiences.length ? Math.min(metricsFound / state.experiences.length, 1) : 0;
+  const actionFactor = state.experiences.length ? Math.min(actionFound / state.experiences.length, 1) : 0;
+  const experienceScore = ( (exCountFactor*0.5 + metricsFactor*0.3 + actionFactor*0.2) * weights.experience );
+  details.experience = Math.round(experienceScore);
+
+  // skills: 4-8 skills preferred
+  const skillCount = state.skills.length;
+  const skillsFactor = Math.min(skillCount / 6, 1); // 6 is target
+  const skillsScore = skillsFactor * weights.skills;
+  details.skills = Math.round(skillsScore);
+
+  // summary: length (100-260 chars ideal) and presence of role/years/metric
+  const sum = state.profile.summary.trim();
+  const len = sum.length;
+  let sumFactor = 0;
+  if(len >= 100 && len <= 260) sumFactor = 1;
+  else if(len >= 60) sumFactor = 0.7;
+  else if(len > 0) sumFactor = 0.4;
+  else sumFactor = 0;
+  // includes a number or action verb
+  const sumAction = /(\d+|led|improved|increased|reduced|built|launched|designed|optimized)/i.test(sum) ? 1 : 0;
+  const summaryScore = (0.75 * sumFactor + 0.25 * sumAction) * weights.summary;
+  details.summary = Math.round(summaryScore);
+
+  // ATS friendliness: if template selected is 'ats' or 'top1' we favor; penalize photo for ATS
+  let atsFactor = 0;
+  if(state.template === 'ats') atsFactor = 1;
+  else if(state.template === 'top1') atsFactor = 0.9;
+  else atsFactor = 0.6; // visual template less ATS-friendly
+  // penalize photo for ATS
+  const photoPenalty = state.profile.photo ? -0.08 : 0; // -8% weight factor
+  // presence of contact and LinkedIn
+  const contactOk = !!(state.profile.email.trim() || state.profile.phone.trim());
+  const linkedOk = !!state.profile.linkedin.trim();
+  let contactBonus = (contactOk && linkedOk) ? 0.08 : (contactOk || linkedOk) ? 0.04 : 0;
+  const atsScore = Math.max(0, (atsFactor + contactBonus + photoPenalty)/1.2) * weights.ats;
+  details.ats = Math.round(atsScore);
+
+  // total
+  score = completenessScore + experienceScore + skillsScore + summaryScore + atsScore;
+  const rounded = Math.round(Math.max(0, Math.min(100, score)));
+  return { score: rounded, details, reqs };
+}
+
+/* produce suggestions with codes for automatic application */
+function generateSuggestionsDetailed(){
+  const s = computeScore();
+  const suggestions = [];
+  // look at reqs
+  s.reqs.forEach(r=>{
+    if(!r.ok){
+      if(r.k==='name') suggestions.push({ code:'NO_NAME', text:'Add your full name (required)' });
+      if(r.k==='headline') suggestions.push({ code:'NO_HEADLINE', text:'Add a concise headline (role + focus)' });
+      if(r.k==='contact') suggestions.push({ code:'NO_CONTACT', text:'Add phone or email' });
+      if(r.k==='linkedin') suggestions.push({ code:'NO_LINKEDIN', text:'Add LinkedIn profile URL' });
+      if(r.k==='summary') suggestions.push({ code:'SUMMARY_MISSING', text:'Add a short professional summary (2–4 lines)' });
+      if(r.k==='education') suggestions.push({ code:'NO_EDU', text:'Add education: school & degree' });
+      if(r.k==='experience') suggestions.push({ code:'NO_EXP', text:'Add at least one experience with bullet points and metrics' });
+    }
+  });
+  // experiences metrics
+  const metricsMissing = state.experiences.every(ex=> !/\d+/.test(ex.desc));
+  if(metricsMissing) suggestions.push({ code:'LACK_METRICS', text:'Add metrics to at least one experience (numbers, percentages)' });
+  // skills
+  if(state.skills.length < 4) suggestions.push({ code:'FEW_SKILLS', text:'Add more relevant skills (4–8 is ideal)' });
+  // summary length
+  const len = state.profile.summary.trim().length;
+  if(len < 80) suggestions.push({ code:'SUMMARY_SHORT', text:'Lengthen summary to 2–4 lines and add a metric or top skill' });
+  // photo note
+  if(state.profile.photo && state.template !== 'visual') suggestions.push({ code:'PHOTO_WARNING', text:'Consider removing photo for ATS (optional)' });
+
+  return suggestions;
+}
+
+function computeAndDisplayScore(){
+  const res = computeScore();
+  // gauge color
+  const pct = res.score;
+  const color = pct >= 80 ? getCssVar('--success') : pct >= 60 ? getCssVar('--warn') : getCssVar('--danger');
+  // update gauge (using conic gradient)
+  gaugeEl.style.background = `conic-gradient(${color} 0% ${pct}%, rgba(255,255,255,0.04) ${pct}% 100%)`;
+  gaugeEl.textContent = pct;
+  scoreLabel.textContent = `Score: ${pct} / 100`;
+  // advice and breakdown
+  let advice = '';
+  if(pct >= 85) advice = 'Excellent — this looks like a strong Top-1 candidate. Export ATS HTML and submit.';
+  else if(pct >= 65) advice = 'Good — add one or two metrics and a couple more skills to push to Top-1.';
+  else advice = 'Work on missing fields, add concrete metrics to experience, and expand the summary.';
+  scoreAdvice.textContent = advice;
+
+  // breakdown and suggestions
+  const d = res.details;
+  suggestionsEl.innerHTML = `
+    <div><strong>Breakdown</strong></div>
+    <div class="muted" style="margin-top:6px">
+      Completeness: ${d.completeness}% • Experience: ${d.experience}% • Skills: ${d.skills}% • Summary: ${d.summary}% • ATS: ${d.ats}%
+    </div>
+  `;
+
+  // actionable suggestions
+  const suggestions = generateSuggestionsDetailed();
+  if(suggestions.length){
+    suggestionsEl.innerHTML += '<div style="margin-top:8px"><strong>Suggestions</strong></div>';
+    suggestions.forEach(s => {
+      suggestionsEl.innerHTML += `<div style="margin-top:6px">• ${s.text} ${s.code ? `<button data-code="${s.code}" class="pill" style="margin-left:8px">Apply</button>` : ''}</div>`;
+    });
+    // wire apply buttons
+    suggestionsEl.querySelectorAll('button[data-code]').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        const code = btn.dataset.code;
+        if(code==='SUMMARY_SHORT') {
+          state.profile.summary = state.profile.summary.trim() + ' Passionate leader who delivers measurable outcomes — increased retention by 18% and shipped features for 200k users.';
+        } else if(code==='LACK_METRICS'){
+          const ex = state.experiences[0];
+          if(ex && !/\d/.test(ex.desc)) ex.desc += ' Delivered feature used by 150k users and increased activation by 12%.';
+        } else if(code==='FEW_SKILLS'){
+          state.skills.push({ id: genId(), name:'System Design', level:72 });
+        } else if(code==='NO_LINKEDIN'){
+          state.profile.linkedin = 'https://linkedin.com/in/yourprofile';
+        } else if(code==='NO_CONTACT'){
+          if(!state.profile.email) state.profile.email = 'you@example.com';
+        }
+        renderLists(); requestRender(); computeAndDisplayScore();
+      });
+    });
+  }
+}
+
+/* ---------- canvas drawing (similar hi-tech style) ---------- */
+// reuse helper functions from earlier builder
+function hexToRgba(hex, alpha=1){ const h = hex.replace('#',''); const bigint = parseInt(h.length===3? h.split('').map(c=>c+c).join(''): h,16); const r=(bigint>>16)&255,g=(bigint>>8)&255,b=bigint&255; return `rgba(${r},${g},${b},${alpha})`; }
+function drawRoundedRect(x,y,w,h,r,fill){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); if(fill){ ctx.fillStyle = fill; ctx.fill(); } }
+function wrapText(ctx,text,x,y,maxWidth,lineHeight){ ctx.textBaseline='top'; const words=text.split(' '); let line='', yy=y; for(let n=0;n<words.length;n++){ const test=line+words[n]+' '; const metrics=ctx.measureText(test); if(metrics.width>maxWidth && n>0){ ctx.fillText(line,x,yy); line=words[n]+' '; yy+=lineHeight; } else line=test; } ctx.fillText(line,x,yy); }
+function drawNeonHalo(cx,cy,r,color,alpha){ ctx.beginPath(); ctx.fillStyle = hexToRgba(color,alpha); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); }
+function getInitials(name=''){ return name.split(' ').map(s=>s[0]||'').slice(0,2).join('').toUpperCase(); }
+
+/* render canvas based on selected template */
+function draw(){
+  const DPR = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(980 * DPR);
+  canvas.height = Math.floor(1280 * DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const W = canvas.width / DPR, H = canvas.height / DPR;
+
+  // background – for 'ats' keep simple, for others keep neon
+  if(state.template === 'ats'){
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#111827';
+  } else {
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0, hexToRgba(state.theme, 0.09));
+    g.addColorStop(1, '#031018');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    // decorative halos
+    drawNeonHalo(W*0.78, H*0.08, 160, state.theme, 0.06);
+    drawNeonHalo(W*0.22, H*0.9, 240, '#00d4ff', 0.04);
+  }
+
+  // main card
+  drawRoundedRect(28,28,W-56,H-56,18, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
+  if(state.template !== 'ats'){
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // left profile area
+  const leftX = 48, leftW = Math.min(360, W*0.34);
+  drawRoundedRect(leftX,48,leftW,H-96,12, state.template==='ats' ? '#ffffff' : 'rgba(255,255,255,0.02)');
+  if(state.template!=='ats'){ ctx.fillStyle = state.theme; ctx.globalAlpha = 0.06; ctx.fillRect(leftX,48,leftW,8); ctx.globalAlpha = 1; }
+
+  // profile photo
+  const cx = leftX + leftW/2, cy = 150, r = 56;
+  if(state.profile.photo && state.template !== 'ats'){
+    const img = state.profile.photo;
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r+4,0,Math.PI*2); ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fill();
+    ctx.clip(); ctx.drawImage(img, cx-r, cy-r, r*2, r*2); ctx.restore();
+    ctx.beginPath(); ctx.arc(cx,cy,r+6,0,Math.PI*2); ctx.strokeStyle = state.theme; ctx.lineWidth = 3; ctx.stroke();
+  } else if(state.template === 'ats'){
+    // no photo for ATS by default (render initials inline)
+    ctx.fillStyle = '#000'; ctx.font = '700 18px Inter, sans-serif';
+    ctx.fillText(state.profile.name, leftX + 16, 130);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle = state.theme; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#eaf0ff'; ctx.font = '700 28px Inter, sans-serif'; ctx.textAlign='center'; ctx.fillText(getInitials(state.profile.name), cx, cy+8); ctx.textAlign='start';
+  }
+
+  // name & headline
+  ctx.fillStyle = state.template==='ats' ? '#0f172a' : '#eaf0ff';
+  ctx.font = state.template==='ats' ? '800 20px Inter, sans-serif' : '800 22px Inter, sans-serif';
+  ctx.fillText(state.profile.name, leftX + 20, 230);
+  ctx.fillStyle = state.template==='ats' ? '#111827' : '#b8c6d9';
+  ctx.font = '500 13px Inter, sans-serif';
+  ctx.fillText(state.profile.headline, leftX + 20, 252);
+
+  // contact block (ATS: left top)
+  ctx.fillStyle = state.template==='ats' ? '#111827' : '#9fb0c9';
+  ctx.font = '500 12px Inter, sans-serif';
+  const contactX = leftX + 20;
+  wrapText(ctx, `Email: ${state.profile.email}`, contactX, 280, leftW - 40, 16);
+  wrapText(ctx, `Phone: ${state.profile.phone}`, contactX, 300, leftW - 40, 16);
+  wrapText(ctx, `Location: ${state.profile.location}`, contactX, 320, leftW - 40, 16);
+  wrapText(ctx, `LinkedIn: ${state.profile.linkedin}`, contactX, 340, leftW - 40, 16);
+
+  // summary (ATS: as text block)
+  ctx.fillStyle = state.template === 'ats' ? '#0f172a' : 'rgba(255,255,255,0.03)';
+  drawRoundedRect(leftX + 12, 380, leftW - 24, 92, 10, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
+  ctx.fillStyle = state.template==='ats' ? '#0b1220' : '#cfe2ff';
+  ctx.font = '14px Inter, sans-serif';
+  wrapText(ctx, state.profile.summary, leftX + 22, 400, leftW - 44, 16);
+
+  // education & skills left column
+  ctx.fillStyle = state.theme; ctx.font = '700 14px Inter, sans-serif';
+  ctx.fillText('Education', leftX + 20, 520);
+  ctx.fillStyle = state.template==='ats' ? '#0b1220' : '#cfe2ff';
+  ctx.font = '500 13px Inter, sans-serif';
+  wrapText(ctx, `${state.education.degree}, ${state.education.school}`, leftX + 20, 540, leftW - 44, 14);
+  ctx.fillStyle = '#9fb0c9'; ctx.font = '12px Inter, sans-serif'; ctx.fillText(state.education.years, leftX + 20, 570);
+
+  // skills
+  ctx.fillStyle = state.theme; ctx.font = '700 14px Inter, sans-serif';
+  ctx.fillText('Skills', leftX + 20, 610);
+  let skillY = 632;
+  state.skills.forEach((s, idx)=>{
+    ctx.fillStyle = state.template==='ats' ? '#111827' : '#cfe2ff';
+    ctx.font = '500 13px Inter, sans-serif'; ctx.fillText(s.name, leftX + 20, skillY);
+    const bx = leftX + 20, bw = leftW - 60, bh = 8;
+    if(state.template === 'ats'){
+      // simple textual percent for ATS
+      ctx.fillStyle = '#111827'; ctx.fillText(`${s.level}%`, leftX + leftW - 40, skillY);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.03)'; drawRoundedRect(bx, skillY+6, bw, bh, 6, 'rgba(255,255,255,0.03)');
+      ctx.fillStyle = state.theme; drawRoundedRect(bx, skillY+6, (bw * s.level / 100), bh, 6, state.theme);
+      ctx.fillStyle = '#9fb0c9'; ctx.font = '12px Inter, sans-serif';
+      ctx.fillText(`${s.level}%`, leftX + leftW - 30, skillY+14);
+    }
+    skillY += 36;
+  });
+
+  // right experiences column
+  const rightX = leftX + leftW + 20;
+  const rightW = W - rightX - 48;
+  ctx.fillStyle = state.theme; ctx.font = '800 22px Inter, sans-serif'; ctx.fillText('Experience', rightX, 60);
+
+  // two-column card layout
+  const colGap = 16, colW = (rightW - colGap) / 2;
+  let baseY = 96;
+  state.experiences.forEach((exp, i)=>{
+    const top = baseY + i * 170;
+    drawExperienceCard(rightX, top, colW, exp.role, exp.company, exp.years, exp.desc, state.theme);
+    if(exp.co) drawExperienceCard(rightX + colW + colGap, top, colW, exp.co.role, exp.co.company, exp.co.years, exp.co.desc, '#00d4ff');
+    else drawRoundedRect(rightX + colW + colGap, top, colW, 140, 10, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
+  });
+
+  // footer signature
+  ctx.fillStyle = state.template==='ats' ? '#111827' : 'rgba(255,255,255,0.04)';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('Generated by Top-1 Resume Builder', rightX, H - 40);
+}
+
+function drawExperienceCard(x,y,w,title,company,years,desc,accent){
+  drawRoundedRect(x,y,w,140,10, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
+  if(state.template !== 'ats'){ ctx.fillStyle = accent; ctx.globalAlpha = 0.06; ctx.fillRect(x,y,w,6); ctx.globalAlpha = 1; }
+  ctx.fillStyle = state.template==='ats' ? '#0f172a' : '#eaf0ff';
+  ctx.font = '700 14px Inter, sans-serif';
+  wrapText(ctx, title, x + 12, y + 28, w - 28, 16);
+  ctx.fillStyle = state.template==='ats' ? '#111827' : '#9fb0c9';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText(company, x + 12, y + 54);
+  ctx.fillText(years, x + w - 80, y + 54);
+  ctx.fillStyle = state.template==='ats' ? '#0b1220' : '#cfe2ff';
+  ctx.font = '13px Inter, sans-serif';
+  wrapText(ctx, desc, x + 12, y + 74, w - 26, 16);
+}
+
+/* ---------- helpers ---------- */
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function getCssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name) || '#7c4dff'; }
+
+/* ---------- scoring display / UI ---------- */
+function computeAndDisplayScore(){
+  const res = computeScore();
+  const pct = res.score;
+  const color = pct >= 80 ? getCssVar('--success') : pct >= 60 ? getCssVar('--warn') : getCssVar('--danger');
+  gaugeEl.style.background = `conic-gradient(${color} 0% ${pct}%, rgba(255,255,255,0.04) ${pct}% 100%)`;
+  gaugeEl.textContent = pct;
+  scoreLabel.textContent = `Score: ${pct} / 100`;
+  const advice = pct >= 85 ? 'Excellent — near Top-1' : pct >= 65 ? 'Good — add metrics & skills' : 'Needs work — follow suggestions';
+  scoreAdvice.textContent = advice;
+  // show suggestions / breakdown
+  const det = res.details;
+  suggestionsEl.innerHTML = `<div><strong>Breakdown</strong></div>
+    <div class="muted" style="margin-top:6px">Completeness: ${det.completeness}% • Experience: ${det.experience}% • Skills: ${det.skills}% • Summary: ${det.summary}% • ATS: ${det.ats}%</div>`;
+  const sugg = generateSuggestionsDetailed();
+  if(sugg.length){
+    suggestionsEl.innerHTML += `<div style="margin-top:8px"><strong>Suggestions</strong></div>`;
+    sugg.forEach(s=> suggestionsEl.innerHTML += `<div style="margin-top:6px">• ${s.text} <button data-code="${s.code}" class="pill" style="margin-left:8px">Apply</button></div>`);
+    suggestionsEl.querySelectorAll('button[data-code]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const code = btn.dataset.code;
+        if(code==='SUMMARY_SHORT') state.profile.summary += ' Passionate leader who delivers measurable outcomes — increased retention by 18%.';
+        if(code==='LACK_METRICS'){ const ex = state.experiences[0]; if(ex && !/\d/.test(ex.desc)) ex.desc += ' Delivered feature used by 150k users and increased activation by 12%.'; }
+        if(code==='FEW_SKILLS') state.skills.push({ id: genId(), name:'System Design', level:72 });
+        if(code==='NO_LINKEDIN') state.profile.linkedin = 'https://linkedin.com/in/yourprofile';
+        if(code==='NO_CONTACT') state.profile.email = state.profile.email || 'you@example.com';
+        renderLists(); requestRender(); computeAndDisplayScore();
+      });
+    });
+  }
+}
+
+/* ---------- ATS HTML export generator ---------- */
+function generateAtsHtml(){
+  // Minimal, semantic HTML for ATS systems
+  const p = state.profile;
+  const edu = state.education;
+  const ex = state.experiences;
+  const skills = state.skills;
+  const escaped = (s)=> escapeHtml(s || '');
+  let html = `
+  <!doctype html>
+  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escaped(p.name)} — Resume</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:28px;line-height:1.4}
+    h1{font-size:20px;margin:0} h2{font-size:14px;margin-top:12px}
+    .muted{color:#444;font-size:13px}
+    .section{margin-top:12px}
+    ul{margin:6px 0 12px 18px}
+  </style>
+  </head><body>
+  <h1>${escaped(p.name)}</h1>
+  <div class="muted">${escaped(p.headline)} • ${escaped(p.location)} • ${escaped(p.email)} • ${escaped(p.phone)} • ${escaped(p.linkedin)}</div>
+  <div class="section"><h2>Summary</h2><div>${escaped(p.summary)}</div></div>
+  <div class="section"><h2>Experience</h2>
+  `;
+  ex.forEach(e=>{
+    html += `<div><strong>${escaped(e.role)}</strong> — ${escaped(e.company)} <span class="muted">${escaped(e.years)}</span><div>${escaped(e.desc)}</div></div>`;
+    if(e.co) html += `<div style="margin-left:12px"><strong>${escaped(e.co.role)}</strong> — ${escaped(e.co.company)} <span class="muted">${escaped(e.co.years)}</span><div>${escaped(e.co.desc)}</div></div>`;
+  });
+  html += `</div><div class="section"><h2>Education</h2><div>${escaped(edu.degree)}, ${escaped(edu.school)} <span class="muted">${escaped(edu.years)}</span></div></div>`;
+  html += `<div class="section"><h2>Skills</h2><div>${skills.map(s=>escapeHtml(s.name)+' ('+s.level+'%)').join(', ')}</div></div>`;
+  html += `</body></html>`;
+  return html;
+}
+
+/* ---------- render loop ---------- */
+let raf = null, needsRender=true;
+function requestRender(){ needsRender=true; if(!raf) raf = requestAnimationFrame(loop); }
+function loop(){ raf = null; if(needsRender){ needsRender=false; state.animTick++; draw(); computeAndDisplayScore(); } }
+renderLists(); requestRender(); computeAndDisplayScore();
+// animate skill fills tick
+setInterval(()=>{ state.animTick++; requestRender(); }, 80);
+
+/* ---------- utility functions ---------- */
+function computeScore(){ /* implemented above as used earlier */ 
+  // call the same method: reuse computeScore defined earlier in code scope (due to hoisting)
+  // For brevity, re-call the computeScore function block by reference:
+  // (We already have computeScore in the global scope above)
+  return (function innerCompute(){
+    // Use the same logic from earlier computeScore closure
+    const weights = { completeness: 30, experience: 25, skills: 15, summary: 15, ats: 15 };
+    let score = 0;
+    const details = {};
+    const reqs = [
+      {k:'name', ok: !!state.profile.name.trim()},
+      {k:'headline', ok: !!state.profile.headline.trim()},
+      {k:'contact', ok: !!(state.profile.email.trim() || state.profile.phone.trim())},
+      {k:'linkedin', ok: !!state.profile.linkedin.trim()},
+      {k:'summary', ok: !!state.profile.summary.trim()},
+      {k:'education', ok: !!(state.education.school.trim() && state.education.degree.trim())},
+      {k:'experience', ok: state.experiences.length>0}
+    ];
+    const okCount = reqs.filter(r=>r.ok).length;
+    const completenessScore = (okCount/reqs.length) * weights.completeness;
+    details.completeness = Math.round(completenessScore);
+    const exCount = state.experiences.length;
+    const exCountFactor = Math.min(exCount,5)/5;
+    let metricsFound = 0, actionFound = 0;
+    const actionVerbs = ['led','managed','improved','increased','reduced','built','launched','designed','developed','optimized','implemented','drove','delivered'];
+    state.experiences.forEach(ex=>{
+      if(/\d+/.test(ex.desc)) metricsFound++;
+      const low=(ex.desc||'').toLowerCase();
+      if(actionVerbs.some(v=>low.includes(v))) actionFound++;
+      if(ex.co && /\d+/.test(ex.co.desc||'')) metricsFound++;
+      if(ex.co && actionVerbs.some(v=> (ex.co.desc||'').toLowerCase().includes(v))) actionFound++;
+    });
+    const metricsFactor = state.experiences.length ? Math.min(metricsFound / state.experiences.length, 1) : 0;
+    const actionFactor = state.experiences.length ? Math.min(actionFound / state.experiences.length, 1) : 0;
+    const experienceScore = ( (exCountFactor*0.5 + metricsFactor*0.3 + actionFactor*0.2) * weights.experience );
+    details.experience = Math.round(experienceScore);
+    const skillCount = state.skills.length;
+    const skillsFactor = Math.min(skillCount / 6, 1);
+    const skillsScore = skillsFactor * weights.skills;
+    details.skills = Math.round(skillsScore);
+    const sum = state.profile.summary.trim();
+    const len = sum.length;
+    let sumFactor = 0;
+    if(len >= 100 && len <= 260) sumFactor = 1;
+    else if(len >= 60) sumFactor = 0.7;
+    else if(len > 0) sumFactor = 0.4;
+    else sumFactor = 0;
+    const sumAction = /(\d+|led|improved|increased|reduced|built|launched|designed|optimized)/i.test(sum) ? 1 : 0;
+    const summaryScore = (0.75 * sumFactor + 0.25 * sumAction) * weights.summary;
+    details.summary = Math.round(summaryScore);
+    let atsFactor = 0;
+    if(state.template === 'ats') atsFactor = 1;
+    else if(state.template === 'top1') atsFactor = 0.9;
+    else atsFactor = 0.6;
+    const photoPenalty = state.profile.photo ? -0.08 : 0;
+    const contactOk = !!(state.profile.email.trim() || state.profile.phone.trim());
+    const linkedOk = !!state.profile.linkedin.trim();
+    let contactBonus = (contactOk && linkedOk) ? 0.08 : (contactOk || linkedOk) ? 0.04 : 0;
+    const atsScore = Math.max(0, (atsFactor + contactBonus + photoPenalty)/1.2) * weights.ats;
+    details.ats = Math.round(atsScore);
+    score = completenessScore + experienceScore + skillsScore + summaryScore + atsScore;
+    const rounded = Math.round(Math.max(0, Math.min(100, score)));
+    return { score: rounded, details, reqs };
+  })();
+}
+
+function generateSuggestionsDetailed(){ /* already defined earlier, reuse */
+  const suggestions = [];
+  const s = computeScore();
+  s.reqs.forEach(r=>{
+    if(!r.ok){
+      if(r.k==='name') suggestions.push({ code:'NO_NAME', text:'Add your full name (required)' });
+      if(r.k==='headline') suggestions.push({ code:'NO_HEADLINE', text:'Add a concise headline (role + focus)' });
+      if(r.k==='contact') suggestions.push({ code:'NO_CONTACT', text:'Add phone or email' });
+      if(r.k==='linkedin') suggestions.push({ code:'NO_LINKEDIN', text:'Add LinkedIn profile URL' });
+      if(r.k==='summary') suggestions.push({ code:'SUMMARY_MISSING', text:'Add a short professional summary (2–4 lines)' });
+      if(r.k==='education') suggestions.push({ code:'NO_EDU', text:'Add education: school & degree' });
+      if(r.k==='experience') suggestions.push({ code:'NO_EXP', text:'Add at least one experience with bullet points and metrics' });
+    }
+  });
+  const metricsMissing = state.experiences.every(ex=> !/\d+/.test(ex.desc));
+  if(metricsMissing) suggestions.push({ code:'LACK_METRICS', text:'Add metrics to at least one experience (numbers, percentages)' });
+  if(state.skills.length < 4) suggestions.push({ code:'FEW_SKILLS', text:'Add more relevant skills (4–8 is ideal)' });
+  const len = state.profile.summary.trim().length;
+  if(len < 80) suggestions.push({ code:'SUMMARY_SHORT', text:'Lengthen summary to 2–4 lines and add a metric or top skill' });
+  if(state.profile.photo && state.template !== 'visual') suggestions.push({ code:'PHOTO_WARNING', text:'Consider removing photo for ATS (optional)' });
+  return suggestions;
+}
+
+/* ---------- ATS HTML generator ---------- */
+function generateAtsHtml(){ /* implemented earlier, reuse logic */
+  const p = state.profile, edu = state.education, ex = state.experiences, skills = state.skills;
+  const escaped = (s)=> escapeHtml(s || '');
+  let html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escaped(p.name)} — Resume</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:28px;line-height:1.4}h1{font-size:20px;margin:0}h2{font-size:14px;margin-top:12px}.muted{color:#444;font-size:13px}.section{margin-top:12px}ul{margin:6px 0 12px 18px}</style></head><body>`;
+  html += `<h1>${escaped(p.name)}</h1><div class="muted">${escaped(p.headline)} • ${escaped(p.location)} • ${escaped(p.email)} • ${escaped(p.phone)} • ${escaped(p.linkedin)}</div>`;
+  html += `<div class="section"><h2>Summary</h2><div>${escaped(p.summary)}</div></div><div class="section"><h2>Experience</h2>`;
+  ex.forEach(e=>{
+    html += `<div><strong>${escaped(e.role)}</strong> — ${escaped(e.company)} <span class="muted">${escaped(e.years)}</span><div>${escaped(e.desc)}</div></div>`;
+    if(e.co) html += `<div style="margin-left:12px"><strong>${escaped(e.co.role)}</strong> — ${escaped(e.co.company)} <span class="muted">${escaped(e.co.years)}</span><div>${escaped(e.co.desc)}</div></div>`;
+  });
+  html += `</div><div class="section"><h2>Education</h2><div>${escaped(edu.degree)}, ${escaped(edu.school)} <span class="muted">${escaped(edu.years)}</span></div></div>`;
+  html += `<div class="section"><h2>Skills</h2><div>${skills.map(s=>escapeHtml(s.name)+' ('+s.level+'%)').join(', ')}</div></div>`;
+  html += `</body></html>`;
+  return html;
+}
+
+/* ---------- simple helpers ---------- */
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ensure UI elements sync with state on load */
+function syncUIFromState(){
+  document.getElementById('name').value = state.profile.name;
+  document.getElementById('headline').value = state.profile.headline;
+  document.getElementById('linkedin').value = state.profile.linkedin;
+  document.getElementById('email').value = state.profile.email;
+  document.getElementById('phone').value = state.profile.phone;
+  document.getElementById('location').value = state.profile.location;
+  document.getElementById('summary').value = state.profile.summary;
+  document.getElementById('school').value = state.education.school;
+  document.getElementById('degree').value = state.education.degree;
+  document.getElementById('eduYears').value = state.education.years;
+  document.getElementById('theme').value = state.theme;
+}
+syncUIFromState();
+renderLists();
+requestRender();
+</script>
+</body>
+</html>
