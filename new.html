@@ -3,818 +3,731 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Resume Builder + Scoring</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<title>Responsive Resume Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#071021; --panel:rgba(255,255,255,0.03); --muted:#9aa4b2; --accent:#7c4dff;
-    --success:#4ade80; --warn:#f59e0b; --danger:#fb7185;
+    --bg:#0b1220;
+    --panel:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    --muted:#9aa4b2;
+    --accent:#0b6cff;
+    --card:#0f1724;
   }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial;background:linear-gradient(180deg,#04101a 0%, #071021 100%);color:#e6eef8}
-  .app{display:grid;grid-template-columns:380px 1fr;gap:18px;padding:18px;height:calc(100vh - 36px)}
-  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;backdrop-filter: blur(6px);box-shadow:0 12px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03);overflow:auto}
-  .brand{display:flex;gap:12px;align-items:center;margin-bottom:8px}
-  .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#00d4ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:800}
-  h2{margin:10px 0 6px;font-size:15px}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071026, #08101a);color:#e6eef8}
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+    padding: 16px;
+    height: calc(100vh - 32px);
+  }
+
+  /* responsive: tablet and mobile stack and show smaller preview but keep A4 aspect */
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; grid-auto-rows: auto; height: auto; padding-bottom: 32px; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px;
+    overflow:auto;
+    border:1px solid rgba(255,255,255,0.03);
+    min-height: 200px;
+  }
+  h1{margin:0;font-size:18px}
+  .meta {display:flex;gap:10px;align-items:center}
+  .logo {width:44px;height:44px;border-radius:10px;background:var(--accent);display:grid;place-items:center;font-weight:700;color:white}
   label{display:block;font-size:13px;color:var(--muted);margin-top:10px}
-  input[type=text], input[type=url], input[type=number], textarea, select, input[type=color] {
-    width:100%;padding:9px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;margin-top:6px;font-size:14px;
+  input[type=text], input[type=url], input[type=number], textarea, select, input[type=color]{
+    width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;margin-top:6px;font-size:14px;
   }
   textarea{min-height:64px;resize:vertical}
   .row{display:flex;gap:8px}
+  .row .col{flex:1}
   .muted{color:var(--muted);font-size:13px}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent),#00d4ff);color:#041025;font-weight:700;cursor:pointer;margin-top:10px}
-  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
-  .pill{padding:6px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted);cursor:pointer}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:none;background:var(--accent);color:#041025;font-weight:700;cursor:pointer;margin-top:8px}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .small{padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent}
   .list{margin-top:12px}
-  .item{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));border-radius:10px;padding:8px;margin-top:8px;border:1px solid rgba(255,255,255,0.02)}
-  .small-action{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px}
-  .score-wrap{display:flex;gap:12px;align-items:center}
-  .gauge{width:96px;height:96px;border-radius:999px;display:grid;place-items:center;font-weight:800}
-  .score-breakdown{font-size:13px;color:var(--muted);margin-top:8px}
-  /* canvas */
-  .preview-wrap{display:flex;align-items:center;justify-content:center}
-  .canvas-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-  canvas{border-radius:12px;box-shadow:0 20px 60px rgba(2,6,23,0.6);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
-  .topbar{display:flex;gap:8px;align-items:center}
-  .template-card{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
-  .template-card.selected{outline:2px solid rgba(124,77,255,0.14);box-shadow:0 8px 24px rgba(124,77,255,0.06)}
-  footer{margin-top:14px;color:var(--muted);font-size:12px}
-  @media (max-width:980px){.app{grid-template-columns:1fr 1fr;grid-auto-rows:1fr}.panel{height:calc(50vh - 36px)}}
-  @media (max-width:680px){.app{grid-template-columns:1fr;height:auto}.panel{height:auto;max-height:50vh}}
+  .item{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-top:8px;border:1px solid rgba(255,255,255,0.02)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  footer{margin-top:12px;color:var(--muted);font-size:13px}
+
+  /* preview area */
+  .preview-wrap { display:flex;align-items:center;justify-content:center; }
+  .canvas-wrap { width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:12px; }
+  canvas { box-shadow: 0 24px 80px rgba(0,0,0,0.6); border-radius:6px; background: white; }
+
+  /* touch targets */
+  button, input, select, textarea { touch-action: manipulation; -webkit-tap-highlight-color: rgba(0,0,0,0); }
+
+  /* Template selector */
+  .templates { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .tpl { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); cursor:pointer; background:transparent; color:var(--muted); }
+  .tpl.selected { outline:2px solid rgba(11,108,255,0.12); color: white; border-color: rgba(255,255,255,0.06); }
+
+  /* small helper */
+  .inline { display:inline-flex; gap:8px; align-items:center; }
 </style>
 </head>
 <body>
   <div class="app">
-    <div class="panel" id="controls">
-
-      <div class="brand"><div class="logo">Top1</div><div><div style="font-weight:800">Top-1 Resume Builder</div><div class="muted">Heuristic scoring + ATS export</div></div></div>
-
-      <div class="topbar" style="justify-content:space-between;align-items:center">
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="template-card selected" data-template="top1" id="tpl-top1"><strong>Top-1 (Recommended)</strong><div class="muted" style="font-size:12px">Hybrid: ATS + Design</div></div>
-          <div class="template-card" data-template="visual" id="tpl-visual"><strong>Hi-Tech Visual</strong><div class="muted" style="font-size:12px">Canvas-heavy</div></div>
-          <div class="template-card" data-template="ats" id="tpl-ats"><strong>ATS-Friendly</strong><div class="muted" style="font-size:12px">Plain HTML</div></div>
-        </div>
-
-        <div class="score-wrap">
-          <div id="gauge" class="gauge" style="background:conic-gradient(var(--accent) 0% 0%, rgba(255,255,255,0.04) 0%);">0</div>
-          <div style="min-width:160px">
-            <div style="font-weight:800" id="scoreLabel">Score: 0</div>
-            <div class="muted" style="font-size:13px" id="scoreAdvice">Fill fields to compute score</div>
-          </div>
+    <!-- left panel: form -->
+    <div class="panel" id="panel">
+      <div class="meta">
+        <div class="logo">CV</div>
+        <div>
+          <h1>Resume Builder</h1>
+          <div class="muted">Responsive for mobile / tablet / laptop • A4 export</div>
         </div>
       </div>
 
-      <h2>Profile</h2>
+      <label>Template</label>
+      <div class="templates">
+        <button class="tpl selected" data-tpl="ats">ATS — Professional</button>
+        <button class="tpl" data-tpl="hitech">Hi-Tech Neon</button>
+        <button class="tpl" data-tpl="portfolio">Creative Portfolio</button>
+      </div>
+
+      <h2 style="margin-top:14px">Profile</h2>
       <label>Photo <input id="photo" type="file" accept="image/*"></label>
+
       <div class="row">
-        <input id="name" type="text" placeholder="Full name" value="Alex Morgan">
-        <input id="headline" type="text" placeholder="Headline" value="Senior Frontend Engineer">
+        <div class="col"><label>Full name <input id="name" type="text"></label></div>
+        <div class="col"><label>Headline <input id="headline" type="text"></label></div>
       </div>
-      <label>LinkedIn <input id="linkedin" type="url" placeholder="https://linkedin.com/in/..." value="https://linkedin.com/in/alexmorgan"></label>
+
+      <label>LinkedIn <input id="linkedin" type="url"></label>
       <div class="row">
-        <input id="email" type="text" placeholder="email" value="alex@example.com">
-        <input id="phone" type="text" placeholder="phone" value="+91 98765 43210">
+        <div class="col"><label>Email <input id="email" type="text"></label></div>
+        <div class="col"><label>Phone <input id="phone" type="text"></label></div>
       </div>
-      <label>Location <input id="location" type="text" placeholder="City, Country" value="Bengaluru, India"></label>
-      <label>Summary <textarea id="summary">Design craftsman and frontend engineer with a love for pixel-perfect interfaces and scalable components.</textarea></label>
+      <label>Location <input id="location" type="text"></label>
+      <label>Summary <textarea id="summary"></textarea></label>
 
       <h2>Education</h2>
       <div class="row">
-        <input id="school" type="text" placeholder="School" value="National Institute of Design">
-        <input id="degree" type="text" placeholder="Degree" value="B.Des — Interaction Design">
+        <input id="school" type="text" placeholder="School / University" class="small">
+        <input id="degree" type="text" placeholder="Degree" class="small">
       </div>
-      <label>Years <input id="eduYears" type="text" value="2014 — 2018"></label>
+      <label>Years <input id="eduYears" type="text"></label>
+      <label>Relevant Coursework <input id="coursework" type="text"></label>
+
+      <h2>Technical Skills</h2>
+      <div id="skillList" class="list"></div>
+      <div class="actions">
+        <button id="addSkill" class="small">+ Add Skill</button>
+        <label style="margin-left:auto">Accent <input id="theme" type="color" value="#0b6cff"></label>
+      </div>
 
       <h2>Experience</h2>
       <div id="expList" class="list"></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="addExp" class="pill">+ Add Experience</button>
-        <button id="addCoExp" class="pill">+ Add Co-Experience to Last</button>
+      <div class="actions">
+        <button id="addExp" class="small">+ Add Experience</button>
+        <button id="addCo" class="small">+ Add Co-Experience to Last</button>
       </div>
 
-      <h2>Skills</h2>
-      <div id="skillList" class="list"></div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-        <button id="addSkill" class="pill">+ Add Skill</button>
-        <label style="margin-left:auto">Accent <input id="theme" type="color" value="#7c4dff" style="margin-left:8px"></label>
+      <h2>Projects / Additional</h2>
+      <label>Projects <textarea id="projects"></textarea></label>
+      <label>Additional Info <textarea id="additional"></textarea></label>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button id="saveLocal" class="btn">Save Locally</button>
+        <button id="loadLocal" class="btn ghost">Load Local</button>
+        <button id="exportJson" class="btn ghost">Download JSON</button>
+        <label class="small ghost" style="display:inline-flex;align-items:center;cursor:pointer;padding:6px 8px">
+          <input id="importJson" type="file" accept=".json" style="display:none">Import JSON
+        </label>
       </div>
 
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button id="optimizeBtn" class="btn">Optimize Suggestions</button>
-        <button id="exportATS" class="btn ghost">Export ATS HTML</button>
-        <button id="downloadPNG" class="btn ghost">Download PNG</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="downloadPNG" class="btn">Download PNG (A4)</button>
+        <button id="downloadPDF" class="btn ghost">Download PDF (A4)</button>
       </div>
 
-      <div id="suggestions" class="score-breakdown"></div>
-      <footer>Score is a heuristic (completeness, metrics, skills, ATS friendliness). Use suggestions to improve content; export ATS HTML for job boards.</footer>
+      <div style="margin-top:12px">
+        <button id="resetBtn" class="small ghost">Reset to Sample</button>
+      </div>
+
+      <footer>Preview shows the print layout. On mobile the form stacks above the preview for easy editing.</footer>
     </div>
+
+    <!-- right panel: preview (canvas) -->
+    <style type="text/css">
+      .preview-wrap {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position: relative; /* added */
+}
+    </style>
+    <div style="position:absolute; top:16px; right:16px; display:flex; gap:6px; z-index:10;">
+  <button id="zoomInBtn" class="small" style="background: blue;">＋</button>
+  <button id="zoomOutBtn" class="small" style="background: blue;">－</button>
+  <button id="zoomResetBtn" class="small" style="background: blue;">⟳</button>
+</div>
+<script type="text/javascript">
+  let zoomFactor = 1; // 1 = normal size
+
+function applyZoom() {
+  const wrap = document.querySelector('.canvas-wrap');
+  const ratio = A4_PX_W / A4_PX_H;
+  // base size fitting to container
+  const maxW = Math.max(300, wrap.clientWidth - 24);
+  const maxH = Math.max(420, window.innerHeight - 200);
+  let showW = maxW, showH = Math.round(showW / ratio);
+  if (showH > maxH) { showH = maxH; showW = Math.round(showH * ratio); }
+  // apply zoom
+  canvas.style.width = (showW * zoomFactor) + 'px';
+  canvas.style.height = (showH * zoomFactor) + 'px';
+}
+
+// Hook buttons
+document.getElementById('zoomInBtn').addEventListener('click', () => {
+  zoomFactor = Math.min(zoomFactor + 0.1, 3); // cap at 3x
+  applyZoom();
+});
+document.getElementById('zoomOutBtn').addEventListener('click', () => {
+  zoomFactor = Math.max(zoomFactor - 0.1, 0.5); // cap at 0.5x
+  applyZoom();
+});
+document.getElementById('zoomResetBtn').addEventListener('click', () => {
+  zoomFactor = 1;
+  applyZoom();
+});
+
+// Update zoom on window resize
+window.addEventListener('resize', applyZoom);
+
+</script>
 
     <div class="preview-wrap">
       <div class="canvas-wrap">
-        <canvas id="canvas" width="980" height="1280" style="width:920px;height:1200px"></canvas>
+        <!-- canvas is sized to A4 at 150 DPI for clean export; CSS will scale it to fit preview area -->
+        <canvas id="canvas"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- jsPDF for PDF export -->
+  <!-- jsPDF used for PDF export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-/* Top-1 Resume Builder — combined canvas UI + scoring & ATS export
-   Save as top1-resume-builder.html and open in browser
+/* Responsive ATS-style resume builder
+   - Multi-template (ATS default)
+   - A4 export (PNG & PDF)
+   - Local save/load JSON
+   - Responsive layout: form stacks on small screens but preview keeps A4 aspect
 */
+
+// A4 in mm -> convert to px at DPI
+const MM_TO_IN = 1/25.4;
+const DPI = 150; // export DPI (150 is a good tradeoff)
+const A4_MM_W = 210, A4_MM_H = 297;
+const A4_PX_W = Math.round(A4_MM_W * MM_TO_IN * DPI);
+const A4_PX_H = Math.round(A4_MM_H * MM_TO_IN * DPI);
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const gaugeEl = document.getElementById('gauge');
-const scoreLabel = document.getElementById('scoreLabel');
-const scoreAdvice = document.getElementById('scoreAdvice');
-const suggestionsEl = document.getElementById('suggestions');
 
-const state = {
-  template: 'top1',
-  profile: { name:'Alex Morgan', headline:'Senior Frontend Engineer', linkedin:'https://linkedin.com/in/alexmorgan', email:'alex@example.com', phone:'+91 98765 43210', location:'Bengaluru, India', summary:'Design craftsman and frontend engineer with a love for pixel-perfect interfaces and scalable components.', photo:null },
-  education: { school:'National Institute of Design', degree:'B.Des — Interaction Design', years:'2014 — 2018' },
-  experiences: [
-    { id: genId(), role:'Senior Product Designer', company:'Example Inc', years:'2021 — Present', desc:'Led product design across web and mobile. Improved retention by 18%.', co: null }
+// Set canvas physical pixel size for exports
+canvas.width = A4_PX_W;
+canvas.height = A4_PX_H;
+
+// Scale canvas CSS so preview fits screen but keep aspect ratio
+function fitCanvasToContainer(){
+  // We want to show the canvas scaled down to fit the preview area while maintaining A4 ratio.
+  const wrap = document.querySelector('.canvas-wrap');
+  const maxW = Math.max(300, wrap.clientWidth - 24);
+  const maxH = Math.max(420, window.innerHeight - 200);
+  // A4 ratio
+  const ratio = A4_PX_W / A4_PX_H;
+  let showW = maxW, showH = Math.round(showW / ratio);
+  if(showH > maxH){ showH = maxH; showW = Math.round(showH * ratio); }
+  canvas.style.width = showW + 'px';
+  canvas.style.height = showH + 'px';
+}
+window.addEventListener('resize', fitCanvasToContainer);
+fitCanvasToContainer();
+
+/* application state with sample content similar to screenshot */
+let state = {
+  template: 'ats', // default ATS professional
+  theme: '#0b6cff',
+  profile: {
+    name: 'ENTER YOUR NAME',
+    headline: 'Software Engineer',
+    linkedin: 'https://linkedin.com/in/karthick',
+    email: 'karthick@uofga.edu',
+    phone: '**********',
+    location: 'location, ',
+    summary: 'Experienced in project management focused on corpsofts with extensive troubleshooting. Skilled in team building and management with demonstrated success.'
+  },
+  education: {
+    school: 'University of Georgia, School of Computing',
+    degree: 'Bachelor of Science, Computer Science — Emphasis: Software Design',
+    years: 'May 2023',
+    gpa: 'GPA: 3.84 / 4.00'
+  },
+  coursework: 'Software Engineering, Mobile Software Development, Simulation & Modeling, Database Management',
+  skills: [
+    { id: id(), name: 'Programming Languages: C, C++, Java, SQL' },
+    { id: id(), name: 'OS: Windows, Linux, Unix' },
+    { id: id(), name: 'Database: SQL Server, MS Access, Oracle' },
   ],
-  skills: [{ id: genId(), name:'Figma', level:88 }, { id: genId(), name:'React', level:82 }, { id: genId(), name:'HTML/CSS', level:94 }],
-  theme: '#7c4dff',
-  animTick: 0
+  experiences: [
+    { id: id(), role: 'Blog Writer', company: 'UGA Computer Science Dept', location:'Athens, GA', years:'Aug 2022 - Present', desc: 'Write and publish 5+ blog posts each month highlighting industry trends; interviewed faculty and external employers.' },
+    { id: id(), role: 'Intern', company: 'Financial Network Services Pvt. Ltd.', location:'Remote', years:'June 2021 - Aug 2021', desc: 'Operated Nav systems and coordinated transfers across regions; configured notebooks and assisted 6 overseas consultants.' }
+  ],
+  projects: 'Athens Area Humane Society — Built a database to track adoptions; developed UI to manage records.',
+  additional: 'Member, Pi Kappa Alpha Fraternity; volunteer work and leadership roles.'
 };
 
-function genId(){ return 'id_'+Math.random().toString(36).slice(2,9); }
+function id(){ return 'id_' + Math.random().toString(36).slice(2,9); }
 
-/* ---------- templates selector ---------- */
-document.querySelectorAll('.template-card').forEach(el=>{
-  el.addEventListener('click', ()=> {
-    document.querySelectorAll('.template-card').forEach(x=>x.classList.remove('selected'));
-    el.classList.add('selected');
-    state.template = el.dataset.template;
-    requestRender();
-    computeAndDisplayScore();
-  });
-});
+/* ---- DOM elements ---- */
+const tplBtns = document.querySelectorAll('.tpl');
+const themeEl = document.getElementById('theme');
+const photoEl = document.getElementById('photo');
+const nameEl = document.getElementById('name');
+const headlineEl = document.getElementById('headline');
+const linkedinEl = document.getElementById('linkedin');
+const emailEl = document.getElementById('email');
+const phoneEl = document.getElementById('phone');
+const locationEl = document.getElementById('location');
+const summaryEl = document.getElementById('summary');
+const schoolEl = document.getElementById('school');
+const degreeEl = document.getElementById('degree');
+const eduYearsEl = document.getElementById('eduYears');
+const courseworkEl = document.getElementById('coursework');
+const skillListEl = document.getElementById('skillList');
+const expListEl = document.getElementById('expList');
+const projectsEl = document.getElementById('projects');
+const additionalEl = document.getElementById('additional');
 
-/* ---------- build lists ---------- */
-const expListEl = document.getElementById('expList'), skillListEl = document.getElementById('skillList');
+const addSkillBtn = document.getElementById('addSkill');
+const addExpBtn = document.getElementById('addExp');
+const addCoBtn = document.getElementById('addCo');
 
-function createExpItem(exp){
-  const div = document.createElement('div'); div.className='item'; div.dataset.id = exp.id;
-  div.innerHTML = `
-    <div style="display:flex;gap:8px;align-items:center">
-      <input class="small" data-key="role" value="${escapeHtml(exp.role)}" placeholder="Role">
-      <input class="small" data-key="company" value="${escapeHtml(exp.company)}" placeholder="Company">
-      <input class="small" data-key="years" style="width:120px" value="${escapeHtml(exp.years)}" placeholder="Years">
-      <button class="small-action" data-act="remove">✕</button>
-    </div>
-    <label class="muted">Description</label>
-    <textarea data-key="desc">${escapeHtml(exp.desc || '')}</textarea>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="pill small-action" data-act="addCo">+ Co-Experience</button>
-      ${exp.co ? `<button class="pill small-action" data-act="removeCo">Remove Co</button>` : ''}
-    </div>
-  `;
-  div.querySelectorAll('[data-key]').forEach(inp=>{
-    inp.addEventListener('input', ()=>{
-      const k = inp.dataset.key;
-      exp[k] = inp.value;
-      requestRender(); computeAndDisplayScore();
-    });
-  });
-  div.querySelector('[data-act="remove"]')?.addEventListener('click', ()=>{
-    state.experiences = state.experiences.filter(e=>e.id!==exp.id);
-    renderLists(); requestRender(); computeAndDisplayScore();
-  });
-  div.querySelector('[data-act="addCo"]')?.addEventListener('click', ()=>{
-    if(!exp.co){ exp.co = { role:'Co-role', company:'Co-company', years:'2020 — 2021', desc:'Co-experience summary' }; renderLists(); requestRender(); computeAndDisplayScore(); }
-  });
-  div.querySelector('[data-act="removeCo"]')?.addEventListener('click', ()=>{
-    exp.co = null; renderLists(); requestRender(); computeAndDisplayScore();
-  });
-  return div;
+const saveLocalBtn = document.getElementById('saveLocal');
+const loadLocalBtn = document.getElementById('loadLocal');
+const exportJsonBtn = document.getElementById('exportJson');
+const importJsonEl = document.getElementById('importJson');
+const resetBtn = document.getElementById('resetBtn');
+
+const downloadPNGBtn = document.getElementById('downloadPNG');
+const downloadPDFBtn = document.getElementById('downloadPDF');
+
+/* hydrate UI with state */
+function hydrateUI(){
+  // template selection
+  tplBtns.forEach(b=>{ b.classList.toggle('selected', b.dataset.tpl===state.template); });
+  themeEl.value = state.theme;
+  nameEl.value = state.profile.name;
+  headlineEl.value = state.profile.headline;
+  linkedinEl.value = state.profile.linkedin;
+  emailEl.value = state.profile.email;
+  phoneEl.value = state.profile.phone;
+  locationEl.value = state.profile.location;
+  summaryEl.value = state.profile.summary;
+  schoolEl.value = state.education.school;
+  degreeEl.value = state.education.degree;
+  eduYearsEl.value = state.education.years;
+  courseworkEl.value = state.coursework;
+  projectsEl.value = state.projects;
+  additionalEl.value = state.additional;
+  renderLists();
 }
+hydrateUI();
 
-function createSkillItem(skill){
-  const div = document.createElement('div'); div.className='item'; div.dataset.id = skill.id;
-  div.innerHTML = `
-    <div style="display:flex;gap:8px;align-items:center">
-      <input class="small" data-key="name" value="${escapeHtml(skill.name)}" placeholder="Skill">
-      <input class="small" type="number" data-key="level" value="${skill.level}" min="0" max="100" style="width:92px">
-      <button class="small-action" data-act="remove">✕</button>
-    </div>
-  `;
-  div.querySelectorAll('[data-key]').forEach(inp=>{
-    inp.addEventListener('input', ()=>{
-      const key=inp.dataset.key;
-      skill[key] = (key==='level')? Math.max(0, Math.min(100, parseInt(inp.value||0))) : inp.value;
-      requestRender(); computeAndDisplayScore();
-    });
-  });
-  div.querySelector('[data-act="remove"]')?.addEventListener('click', ()=>{
-    state.skills = state.skills.filter(s=>s.id!==skill.id);
-    renderLists(); requestRender(); computeAndDisplayScore();
-  });
-  return div;
-}
-
+/* render skills and experiences lists in form */
 function renderLists(){
-  expListEl.innerHTML=''; skillListEl.innerHTML='';
-  state.experiences.forEach(e=>expListEl.appendChild(createExpItem(e)));
-  state.skills.forEach(s=>skillListEl.appendChild(createSkillItem(s)));
+  skillListEl.innerHTML = '';
+  state.skills.forEach(s => {
+    const d = document.createElement('div'); d.className='item';
+    d.innerHTML = `<div style="display:flex;gap:8px;align-items:center">
+      <input data-key="name" class="small" value="${escapeHtml(s.name)}">
+      <button class="small" data-act="remove">✕</button></div>`;
+    d.querySelector('[data-key]').addEventListener('input', (e)=>{ s.name = e.target.value; requestRender(); });
+    d.querySelector('[data-act="remove"]').addEventListener('click', ()=>{ state.skills = state.skills.filter(x=>x.id!==s.id); renderLists(); requestRender(); });
+    skillListEl.appendChild(d);
+  });
+
+  expListEl.innerHTML = '';
+  state.experiences.forEach(exp => {
+    const d = document.createElement('div'); d.className='item';
+    d.innerHTML = `<div style="display:flex;gap:8px;align-items:center">
+      <input data-key="role" class="small" value="${escapeHtml(exp.role)}">
+      <input data-key="company" class="small" value="${escapeHtml(exp.company)}">
+      <input data-key="years" class="small" style="width:120px" value="${escapeHtml(exp.years)}">
+      <button class="small" data-act="remove">✕</button>
+    </div>
+    <label class="muted">Location</label>
+    <input data-key="location" class="small" value="${escapeHtml(exp.location)}">
+    <label class="muted">Description</label>
+    <textarea data-key="desc">${escapeHtml(exp.desc)}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="small" data-act="addCo">+ Add Co-Experience</button>
+      <button class="small" data-act="removeCo" ${exp.co ? '' : 'disabled'}>${exp.co ? 'Remove Co' : 'No Co'}</button>
+    </div>`;
+    // wire inputs
+    d.querySelectorAll('[data-key]').forEach(inp=>{
+      inp.addEventListener('input', ()=> {
+        const k = inp.dataset.key;
+        if(k==='role') exp.role = inp.value;
+        if(k==='company') exp.company = inp.value;
+        if(k==='years') exp.years = inp.value;
+        if(k==='location') exp.location = inp.value;
+        if(k==='desc') exp.desc = inp.value;
+        requestRender();
+      });
+    });
+    d.querySelector('[data-act="remove"]').addEventListener('click', ()=>{ state.experiences = state.experiences.filter(x=>x.id!==exp.id); renderLists(); requestRender(); });
+    d.querySelector('[data-act="addCo"]').addEventListener('click', ()=>{ if(!exp.co) exp.co = { role:'Co-role', company:'Co-company', years:'2020', desc:'Co description' }; renderLists(); requestRender(); });
+    d.querySelector('[data-act="removeCo"]').addEventListener('click', ()=>{ exp.co = null; renderLists(); requestRender(); });
+    expListEl.appendChild(d);
+    if(exp.co){
+      const coDiv = document.createElement('div'); coDiv.className='item'; coDiv.style.marginLeft='12px';
+      coDiv.innerHTML = `<div style="font-weight:600">Co-Experience</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input data-key="coRole" class="small" value="${escapeHtml(exp.co.role)}">
+          <input data-key="coCompany" class="small" value="${escapeHtml(exp.co.company)}">
+          <input data-key="coYears" class="small" style="width:120px" value="${escapeHtml(exp.co.years)}">
+        </div>
+        <label class="muted">Description</label>
+        <textarea data-key="coDesc">${escapeHtml(exp.co.desc)}</textarea>`;
+      coDiv.querySelectorAll('[data-key]').forEach(inp=>{
+        inp.addEventListener('input', ()=>{
+          const k = inp.dataset.key;
+          if(k==='coRole') exp.co.role = inp.value;
+          if(k==='coCompany') exp.co.company = inp.value;
+          if(k==='coYears') exp.co.years = inp.value;
+          if(k==='coDesc') exp.co.desc = inp.value;
+          requestRender();
+        });
+      });
+      expListEl.appendChild(coDiv);
+    }
+  });
 }
 
-/* add buttons */
-document.getElementById('addExp').addEventListener('click', ()=>{
-  state.experiences.push({ id: genId(), role:'New Role', company:'Company', years:'Year — Year', desc:'Short description', co: null });
-  renderLists(); requestRender(); computeAndDisplayScore();
-});
-document.getElementById('addCoExp').addEventListener('click', ()=>{
-  const last = state.experiences[state.experiences.length-1];
-  if(last){ if(!last.co) last.co = { role:'Co-role', company:'Co-company', years:'Year — Year', desc:'Co experience' }; renderLists(); requestRender(); computeAndDisplayScore(); }
-});
-document.getElementById('addSkill').addEventListener('click', ()=>{ state.skills.push({ id: genId(), name:'New Skill', level:60 }); renderLists(); requestRender(); computeAndDisplayScore(); });
+/* add item buttons */
+addSkillBtn.addEventListener('click', ()=>{ state.skills.push({ id:id(), name:'New skill' }); renderLists(); requestRender(); });
+addExpBtn.addEventListener('click', ()=>{ state.experiences.push({ id:id(), role:'New Role', company:'Company', years:'Year', location:'', desc:'Description' }); renderLists(); requestRender(); });
+addCoBtn.addEventListener('click', ()=>{ const last = state.experiences[state.experiences.length-1]; if(last && !last.co) last.co = { role:'Co-role', company:'Co-company', years:'2020', desc:'Co desc' }; renderLists(); requestRender(); });
 
-/* wire profile inputs */
-['name','headline','linkedin','email','phone','location','summary','school','degree','eduYears'].forEach(id=>{
-  const el = document.getElementById(id);
+/* template selector */
+tplBtns.forEach(b=>{
+  b.addEventListener('click', ()=>{
+    tplBtns.forEach(x=>x.classList.remove('selected'));
+    b.classList.add('selected');
+    state.template = b.dataset.tpl;
+    requestRender();
+  });
+});
+
+/* wire simple inputs to state */
+[themeEl, nameEl, headlineEl, linkedinEl, emailEl, phoneEl, locationEl, summaryEl,
+ schoolEl, degreeEl, eduYearsEl, courseworkEl, projectsEl, additionalEl].forEach(el=>{
   if(!el) return;
-  el.addEventListener('input', ()=> {
-    const v = el.value;
-    if(id in state.profile) state.profile[id] = v;
-    else if(id==='school') state.education.school = v;
-    else if(id==='degree') state.education.degree = v;
-    else if(id==='eduYears') state.education.years = v;
-    requestRender(); computeAndDisplayScore();
+  el.addEventListener('input', ()=>{
+    state.theme = themeEl.value;
+    state.profile.name = nameEl.value;
+    state.profile.headline = headlineEl.value;
+    state.profile.linkedin = linkedinEl.value;
+    state.profile.email = emailEl.value;
+    state.profile.phone = phoneEl.value;
+    state.profile.location = locationEl.value;
+    state.profile.summary = summaryEl.value;
+    state.education.school = schoolEl.value;
+    state.education.degree = degreeEl.value;
+    state.education.years = eduYearsEl.value;
+    state.coursework = courseworkEl.value;
+    state.projects = projectsEl.value;
+    state.additional = additionalEl.value;
+    requestRender();
   });
 });
 
 /* photo upload */
-document.getElementById('photo').addEventListener('change', e=>{
+photoEl.addEventListener('change', e=>{
   const f = e.target.files && e.target.files[0];
   if(!f) return;
   const r = new FileReader();
   r.onload = ev=>{
     const img = new Image();
-    img.onload = ()=>{ state.profile.photo = img; requestRender(); computeAndDisplayScore(); };
+    img.onload = ()=>{ state.profile.photo = img; requestRender(); };
     img.src = ev.target.result;
   };
   r.readAsDataURL(f);
 });
 
-/* theme */
-document.getElementById('theme').addEventListener('input', e=>{ state.theme = e.target.value; requestRender(); computeAndDisplayScore(); });
+/* ---------- drawing to canvas (A4) ---------- */
+function clearCanvas(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
 
-/* optimize button (apply small suggestions) */
-document.getElementById('optimizeBtn').addEventListener('click', ()=>{
-  const suggestions = generateSuggestionsDetailed();
-  // Apply a few safe auto-fixes: expand summary if too short, ensure LinkedIn present
-  if(suggestions.some(s=>s.code==='SUMMARY_SHORT')){
-    state.profile.summary = state.profile.summary.trim() + ' Passionate leader who delivers measurable outcomes: increased retention by 18% and reduced load time by 35%.';
+/* small text wrapper */
+function drawWrappedText(x,y,maxW,lineH, text, font, fillStyle='#111'){
+  ctx.font = font;
+  ctx.fillStyle = fillStyle;
+  ctx.textBaseline = 'top';
+  const words = (text||'').split(' ');
+  let line = '', yy = y;
+  for(let n=0;n<words.length;n++){
+    const test = line + words[n] + ' ';
+    if(ctx.measureText(test).width > maxW && n>0){
+      ctx.fillText(line, x, yy);
+      line = words[n] + ' ';
+      yy += lineH;
+    } else line = test;
   }
-  if(suggestions.some(s=>s.code==='NO_LINKEDIN')){
-    state.profile.linkedin = state.profile.linkedin || 'https://linkedin.com/in/yourprofile';
-  }
-  if(suggestions.some(s=>s.code==='LACK_METRICS')){
-    // add small metrics to first experience if missing
-    const ex = state.experiences[0];
-    if(ex && !/\d/.test(ex.desc)) ex.desc += ' Delivered features that impacted 200k+ users and improved NPS by 12%.';
-  }
-  renderLists(); requestRender(); computeAndDisplayScore();
-});
-
-/* export ATS HTML */
-document.getElementById('exportATS').addEventListener('click', ()=>{
-  const html = generateAtsHtml();
-  const blob = new Blob([html], {type:'text/html'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `${state.profile.name.replace(/\s+/g,'_')}_ATS.html`; a.click();
-  URL.revokeObjectURL(url);
-});
-
-/* download PNG */
-document.getElementById('downloadPNG').addEventListener('click', ()=>{
-  requestRender();
-  setTimeout(()=>{ const url = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = `${state.profile.name.replace(/\s+/g,'_')}.png`; a.click(); }, 120);
-});
-
-/* ---------- scoring heuristic ---------- */
-function computeScore(){
-  // Weights
-  const weights = { completeness: 30, experience: 25, skills: 15, summary: 15, ats: 15 };
-  let score = 0;
-  const details = {};
-
-  // completeness: name,headline,(email or phone),linkedin,summary,education (school+degree),at least one experience
-  const reqs = [
-    {k:'name', ok: !!state.profile.name.trim()},
-    {k:'headline', ok: !!state.profile.headline.trim()},
-    {k:'contact', ok: !!(state.profile.email.trim() || state.profile.phone.trim())},
-    {k:'linkedin', ok: !!state.profile.linkedin.trim()},
-    {k:'summary', ok: !!state.profile.summary.trim()},
-    {k:'education', ok: !!(state.education.school.trim() && state.education.degree.trim())},
-    {k:'experience', ok: state.experiences.length>0}
-  ];
-  const okCount = reqs.filter(r=>r.ok).length;
-  const completenessScore = (okCount/reqs.length) * weights.completeness;
-  details.completeness = Math.round(completenessScore);
-
-  // experience quality: count, metrics presence, action verbs
-  const exCount = state.experiences.length;
-  const exCountFactor = Math.min(exCount,5)/5; // up to 5 for full
-  let metricsFound = 0;
-  let actionFound = 0;
-  const actionVerbs = ['led','managed','improved','increased','reduced','built','launched','designed','developed','optimized','implemented','drove','ship','shiped','delivered'];
-  state.experiences.forEach(ex=>{
-    if(/\d+/.test(ex.desc)) metricsFound++;
-    const low = (ex.desc||'').toLowerCase();
-    if(actionVerbs.some(v=>low.includes(v))) actionFound++;
-    if(ex.co && /\d+/.test(ex.co.desc||'')) metricsFound++;
-    if(ex.co && actionVerbs.some(v=> (ex.co.desc||'').toLowerCase().includes(v))) actionFound++;
-  });
-  const metricsFactor = state.experiences.length ? Math.min(metricsFound / state.experiences.length, 1) : 0;
-  const actionFactor = state.experiences.length ? Math.min(actionFound / state.experiences.length, 1) : 0;
-  const experienceScore = ( (exCountFactor*0.5 + metricsFactor*0.3 + actionFactor*0.2) * weights.experience );
-  details.experience = Math.round(experienceScore);
-
-  // skills: 4-8 skills preferred
-  const skillCount = state.skills.length;
-  const skillsFactor = Math.min(skillCount / 6, 1); // 6 is target
-  const skillsScore = skillsFactor * weights.skills;
-  details.skills = Math.round(skillsScore);
-
-  // summary: length (100-260 chars ideal) and presence of role/years/metric
-  const sum = state.profile.summary.trim();
-  const len = sum.length;
-  let sumFactor = 0;
-  if(len >= 100 && len <= 260) sumFactor = 1;
-  else if(len >= 60) sumFactor = 0.7;
-  else if(len > 0) sumFactor = 0.4;
-  else sumFactor = 0;
-  // includes a number or action verb
-  const sumAction = /(\d+|led|improved|increased|reduced|built|launched|designed|optimized)/i.test(sum) ? 1 : 0;
-  const summaryScore = (0.75 * sumFactor + 0.25 * sumAction) * weights.summary;
-  details.summary = Math.round(summaryScore);
-
-  // ATS friendliness: if template selected is 'ats' or 'top1' we favor; penalize photo for ATS
-  let atsFactor = 0;
-  if(state.template === 'ats') atsFactor = 1;
-  else if(state.template === 'top1') atsFactor = 0.9;
-  else atsFactor = 0.6; // visual template less ATS-friendly
-  // penalize photo for ATS
-  const photoPenalty = state.profile.photo ? -0.08 : 0; // -8% weight factor
-  // presence of contact and LinkedIn
-  const contactOk = !!(state.profile.email.trim() || state.profile.phone.trim());
-  const linkedOk = !!state.profile.linkedin.trim();
-  let contactBonus = (contactOk && linkedOk) ? 0.08 : (contactOk || linkedOk) ? 0.04 : 0;
-  const atsScore = Math.max(0, (atsFactor + contactBonus + photoPenalty)/1.2) * weights.ats;
-  details.ats = Math.round(atsScore);
-
-  // total
-  score = completenessScore + experienceScore + skillsScore + summaryScore + atsScore;
-  const rounded = Math.round(Math.max(0, Math.min(100, score)));
-  return { score: rounded, details, reqs };
+  ctx.fillText(line, x, yy);
+  return yy + lineH;
 }
 
-/* produce suggestions with codes for automatic application */
-function generateSuggestionsDetailed(){
-  const s = computeScore();
-  const suggestions = [];
-  // look at reqs
-  s.reqs.forEach(r=>{
-    if(!r.ok){
-      if(r.k==='name') suggestions.push({ code:'NO_NAME', text:'Add your full name (required)' });
-      if(r.k==='headline') suggestions.push({ code:'NO_HEADLINE', text:'Add a concise headline (role + focus)' });
-      if(r.k==='contact') suggestions.push({ code:'NO_CONTACT', text:'Add phone or email' });
-      if(r.k==='linkedin') suggestions.push({ code:'NO_LINKEDIN', text:'Add LinkedIn profile URL' });
-      if(r.k==='summary') suggestions.push({ code:'SUMMARY_MISSING', text:'Add a short professional summary (2–4 lines)' });
-      if(r.k==='education') suggestions.push({ code:'NO_EDU', text:'Add education: school & degree' });
-      if(r.k==='experience') suggestions.push({ code:'NO_EXP', text:'Add at least one experience with bullet points and metrics' });
+/* draw ATS template — text-first, left aligned similar to screenshot */
+function drawATSTemplate(){
+  clearCanvas();
+  // white background
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  const margin = Math.round(24 * DPI/96);
+  const contentW = canvas.width - margin*2;
+
+  // header: name center top with contact line beneath (screenshot style)
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(28 * DPI/96)}px Inter, sans-serif`;
+  const name = state.profile.name || '';
+  ctx.textAlign = 'center';
+  ctx.fillText(name, canvas.width/2, margin);
+  ctx.font = `${Math.round(12 * DPI/96)}px Inter, sans-serif`; ctx.fillStyle = '#333';
+  const contactLine = `${state.profile.email || ''} • ${state.profile.phone || ''} • ${state.profile.linkedin || ''}`;
+  ctx.fillText(contactLine, canvas.width/2, margin + Math.round(36 * DPI/96));
+  ctx.textAlign = 'left';
+
+  // a thin horizontal rule
+  ctx.fillStyle = '#e6eef8'; ctx.fillRect(margin, margin + Math.round(56*DPI/96), contentW, 1);
+
+  // left column full width text blocks as in screenshot
+  let y = margin + Math.round(70*DPI/96);
+
+  // Summary heading
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(14*DPI/96)}px Inter, sans-serif`; ctx.fillText('SUMMARY OF QUALIFICATIONS', margin, y);
+  y += Math.round(18*DPI/96);
+  ctx.fillStyle = '#333'; ctx.font = `${Math.round(12*DPI/96)}px Inter, sans-serif`;
+  y = drawWrappedText(margin + 8, y, contentW - 16, Math.round(18*DPI/96), state.profile.summary, `${Math.round(12*DPI/96)}px Inter, sans-serif`, '#222');
+
+  // Education
+  y += Math.round(10*DPI/96);
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(14*DPI/96)}px Inter, sans-serif`; ctx.fillText('EDUCATION', margin, y);
+  y += Math.round(18*DPI/96);
+  ctx.fillStyle = '#222'; ctx.font = `${Math.round(12*DPI/96)}px Inter, sans-serif`;
+  drawWrappedText(margin + 8, y, contentW - 16, Math.round(16*DPI/96), `${state.education.school} — ${state.education.degree}`, `${Math.round(12*DPI/96)}px Inter, sans-serif`, '#111');
+  y += Math.round(30*DPI/96);
+  ctx.fillStyle = '#666'; ctx.font = `${Math.round(11*DPI/96)}px Inter, sans-serif`;
+  ctx.fillText(state.education.years + (state.education.gpa ? ' • ' + state.education.gpa : ''), margin + 8, y);
+  y += Math.round(20*DPI/96);
+
+  // Coursework
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(13*DPI/96)}px Inter, sans-serif`; ctx.fillText('RELEVANT COURSEWORK', margin, y);
+  y += Math.round(18*DPI/96);
+  ctx.fillStyle = '#333'; ctx.font = `${Math.round(12*DPI/96)}px Inter, sans-serif`;
+  y = drawWrappedText(margin + 8, y, contentW - 16, Math.round(16*DPI/96), state.coursework, `${Math.round(12*DPI/96)}px Inter, sans-serif`, '#222');
+
+  // Technical Skills
+  y += Math.round(8*DPI/96);
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(13*DPI/96)}px Inter, sans-serif`; ctx.fillText('TECHNICAL SKILLS', margin, y);
+  y += Math.round(18*DPI/96);
+  ctx.fillStyle = '#333'; ctx.font = `${Math.round(12*DPI/96)}px Inter, sans-serif`;
+  state.skills.forEach(s => {
+    y = drawWrappedText(margin + 8, y, contentW - 16, Math.round(16*DPI/96), s.name, `${Math.round(12*DPI/96)}px Inter, sans-serif`, '#222');
+    y += Math.round(6*DPI/96);
+  });
+
+  // Experience
+  y += Math.round(6*DPI/96);
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(13*DPI/96)}px Inter, sans-serif`; ctx.fillText('RELEVANT EXPERIENCE', margin, y);
+  y += Math.round(18*DPI/96);
+  state.experiences.forEach(exp=>{
+    ctx.fillStyle = '#111'; ctx.font = `${Math.round(12*DPI/96)}px Inter, sans-serif`;
+    ctx.fillText(`${exp.company} — ${exp.role}`, margin + 8, y);
+    ctx.fillStyle = '#666'; ctx.font = `${Math.round(11*DPI/96)}px Inter, sans-serif`;
+    ctx.fillText(`${exp.location} • ${exp.years}`, canvas.width - margin - 220, y);
+    y += Math.round(18*DPI/96);
+    ctx.fillStyle = '#222';
+    y = drawWrappedText(margin + 16, y, contentW - 32, Math.round(16*DPI/96), exp.desc, `${Math.round(11*DPI/96)}px Inter, sans-serif`, '#222');
+    y += Math.round(8*DPI/96);
+    if(exp.co){
+      ctx.fillStyle = '#111'; ctx.font = `${Math.round(11*DPI/96)}px Inter, sans-serif`; ctx.fillText(`Co: ${exp.co.company} — ${exp.co.role}`, margin + 16, y);
+      y += Math.round(16*DPI/96);
+      y = drawWrappedText(margin + 20, y, contentW - 40, Math.round(15*DPI/96), exp.co.desc, `${Math.round(11*DPI/96)}px Inter, sans-serif`, '#444');
+      y += Math.round(8*DPI/96);
     }
   });
-  // experiences metrics
-  const metricsMissing = state.experiences.every(ex=> !/\d+/.test(ex.desc));
-  if(metricsMissing) suggestions.push({ code:'LACK_METRICS', text:'Add metrics to at least one experience (numbers, percentages)' });
-  // skills
-  if(state.skills.length < 4) suggestions.push({ code:'FEW_SKILLS', text:'Add more relevant skills (4–8 is ideal)' });
-  // summary length
-  const len = state.profile.summary.trim().length;
-  if(len < 80) suggestions.push({ code:'SUMMARY_SHORT', text:'Lengthen summary to 2–4 lines and add a metric or top skill' });
-  // photo note
-  if(state.profile.photo && state.template !== 'visual') suggestions.push({ code:'PHOTO_WARNING', text:'Consider removing photo for ATS (optional)' });
 
-  return suggestions;
+  // Projects / Additional
+  y += Math.round(6*DPI/96);
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(13*DPI/96)}px Inter, sans-serif`; ctx.fillText('PROJECTS', margin, y);
+  y += Math.round(18*DPI/96);
+  ctx.fillStyle = '#222'; y = drawWrappedText(margin + 8, y, contentW - 16, Math.round(16*DPI/96), state.projects, `${Math.round(12*DPI/96)}px Inter, sans-serif`, '#222');
+
+  y += Math.round(8*DPI/96);
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(13*DPI/96)}px Inter, sans-serif`; ctx.fillText('ADDITIONAL EXPERIENCE', margin, y);
+  y += Math.round(18*DPI/96);
+  ctx.fillStyle = '#222'; drawWrappedText(margin + 8, y, contentW - 16, Math.round(16*DPI/96), state.additional, `${Math.round(12*DPI/96)}px Inter, sans-serif`, '#222');
 }
 
-function computeAndDisplayScore(){
-  const res = computeScore();
-  // gauge color
-  const pct = res.score;
-  const color = pct >= 80 ? getCssVar('--success') : pct >= 60 ? getCssVar('--warn') : getCssVar('--danger');
-  // update gauge (using conic gradient)
-  gaugeEl.style.background = `conic-gradient(${color} 0% ${pct}%, rgba(255,255,255,0.04) ${pct}% 100%)`;
-  gaugeEl.textContent = pct;
-  scoreLabel.textContent = `Score: ${pct} / 100`;
-  // advice and breakdown
-  let advice = '';
-  if(pct >= 85) advice = 'Excellent — this looks like a strong Top-1 candidate. Export ATS HTML and submit.';
-  else if(pct >= 65) advice = 'Good — add one or two metrics and a couple more skills to push to Top-1.';
-  else advice = 'Work on missing fields, add concrete metrics to experience, and expand the summary.';
-  scoreAdvice.textContent = advice;
-
-  // breakdown and suggestions
-  const d = res.details;
-  suggestionsEl.innerHTML = `
-    <div><strong>Breakdown</strong></div>
-    <div class="muted" style="margin-top:6px">
-      Completeness: ${d.completeness}% • Experience: ${d.experience}% • Skills: ${d.skills}% • Summary: ${d.summary}% • ATS: ${d.ats}%
-    </div>
-  `;
-
-  // actionable suggestions
-  const suggestions = generateSuggestionsDetailed();
-  if(suggestions.length){
-    suggestionsEl.innerHTML += '<div style="margin-top:8px"><strong>Suggestions</strong></div>';
-    suggestions.forEach(s => {
-      suggestionsEl.innerHTML += `<div style="margin-top:6px">• ${s.text} ${s.code ? `<button data-code="${s.code}" class="pill" style="margin-left:8px">Apply</button>` : ''}</div>`;
-    });
-    // wire apply buttons
-    suggestionsEl.querySelectorAll('button[data-code]').forEach(btn=>{
-      btn.addEventListener('click', ()=> {
-        const code = btn.dataset.code;
-        if(code==='SUMMARY_SHORT') {
-          state.profile.summary = state.profile.summary.trim() + ' Passionate leader who delivers measurable outcomes — increased retention by 18% and shipped features for 200k users.';
-        } else if(code==='LACK_METRICS'){
-          const ex = state.experiences[0];
-          if(ex && !/\d/.test(ex.desc)) ex.desc += ' Delivered feature used by 150k users and increased activation by 12%.';
-        } else if(code==='FEW_SKILLS'){
-          state.skills.push({ id: genId(), name:'System Design', level:72 });
-        } else if(code==='NO_LINKEDIN'){
-          state.profile.linkedin = 'https://linkedin.com/in/yourprofile';
-        } else if(code==='NO_CONTACT'){
-          if(!state.profile.email) state.profile.email = 'you@example.com';
-        }
-        renderLists(); requestRender(); computeAndDisplayScore();
-      });
-    });
-  }
+/* alternate templates (nice visual examples). Keep ATS default as asked */
+function drawHiTech(){
+  clearCanvas();
+  // simple neon-ish background and layout (not fully identical to previous hi-tech — quick rendering)
+  const g = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+  g.addColorStop(0, hexToRgba(state.theme,0.12));
+  g.addColorStop(1, '#031018');
+  ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width,canvas.height);
+  // basic content: name, headline, summary, experience columns
+  const margin = Math.round(40*DPI/96);
+  ctx.fillStyle = '#fff'; ctx.font = `${Math.round(36*DPI/96)}px Inter, sans-serif`; ctx.fillText(state.profile.name, margin, margin + 10);
+  ctx.font = `${Math.round(18*DPI/96)}px Inter, sans-serif`; ctx.fillStyle = '#dbeafe'; ctx.fillText(state.profile.headline, margin, margin + 60);
+  // right column experiences
+  let x = margin, y = margin + 120, w = canvas.width - margin*2;
+  state.experiences.forEach(exp=>{
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; drawRoundedRect(x,y,w,Math.round(120*DPI/96),12,'rgba(255,255,255,0.02)');
+    ctx.fillStyle = '#fff'; ctx.font = `${Math.round(18*DPI/96)}px Inter, sans-serif`; ctx.fillText(exp.role + ' — ' + exp.company, x + 12, y + 12);
+    ctx.fillStyle = '#cfe2ff'; ctx.font = `${Math.round(12*DPI/96)}px Inter, sans-serif`; drawWrappedText(x + 12, y + 40, w - 24, Math.round(16*DPI/96), exp.desc, `${Math.round(12*DPI/96)}px Inter, sans-serif`);
+    y += Math.round(140*DPI/96);
+  });
 }
 
-/* ---------- canvas drawing (similar hi-tech style) ---------- */
-// reuse helper functions from earlier builder
-function hexToRgba(hex, alpha=1){ const h = hex.replace('#',''); const bigint = parseInt(h.length===3? h.split('').map(c=>c+c).join(''): h,16); const r=(bigint>>16)&255,g=(bigint>>8)&255,b=bigint&255; return `rgba(${r},${g},${b},${alpha})`; }
+function drawPortfolio(){
+  clearCanvas();
+  // big left accent, right content
+  ctx.fillStyle = state.theme; ctx.fillRect(0,0,Math.round(canvas.width*0.28),canvas.height);
+  ctx.fillStyle = '#fff'; ctx.font = `${Math.round(30*DPI/96)}px Inter, sans-serif`; ctx.fillText(state.profile.name, 40, 60);
+  ctx.font = `${Math.round(14*DPI/96)}px Inter, sans-serif`; ctx.fillText(state.profile.headline, 40, 110);
+  // right content: projects
+  let x = Math.round(canvas.width*0.32), y = 60;
+  ctx.fillStyle = '#111'; ctx.font = `${Math.round(20*DPI/96)}px Inter, sans-serif`; ctx.fillText('Projects', x, y);
+  y += 30;
+  ctx.fillStyle = '#333';
+  drawWrappedText(x, y, canvas.width - x - 60, Math.round(16*DPI/96), state.projects, `${Math.round(13*DPI/96)}px Inter, sans-serif`);
+}
+
+/* master draw */
+function renderCanvas(){
+  if(state.template === 'ats') drawATSTemplate();
+  else if(state.template === 'hitech') drawHiTech();
+  else drawPortfolio();
+}
+
+/* ---------- utilities ---------- */
+function hexToRgba(hex, a=1){
+  const h = hex.replace('#','');
+  const bigint = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+  return `rgba(${r},${g},${b},${a})`;
+}
 function drawRoundedRect(x,y,w,h,r,fill){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); if(fill){ ctx.fillStyle = fill; ctx.fill(); } }
-function wrapText(ctx,text,x,y,maxWidth,lineHeight){ ctx.textBaseline='top'; const words=text.split(' '); let line='', yy=y; for(let n=0;n<words.length;n++){ const test=line+words[n]+' '; const metrics=ctx.measureText(test); if(metrics.width>maxWidth && n>0){ ctx.fillText(line,x,yy); line=words[n]+' '; yy+=lineHeight; } else line=test; } ctx.fillText(line,x,yy); }
-function drawNeonHalo(cx,cy,r,color,alpha){ ctx.beginPath(); ctx.fillStyle = hexToRgba(color,alpha); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); }
-function getInitials(name=''){ return name.split(' ').map(s=>s[0]||'').slice(0,2).join('').toUpperCase(); }
+function escapeHtml(s){ return String(s||''); }
 
-/* render canvas based on selected template */
-function draw(){
-  const DPR = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(980 * DPR);
-  canvas.height = Math.floor(1280 * DPR);
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  const W = canvas.width / DPR, H = canvas.height / DPR;
-
-  // background – for 'ats' keep simple, for others keep neon
-  if(state.template === 'ats'){
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0,0,W,H);
-    ctx.fillStyle = '#111827';
-  } else {
-    const g = ctx.createLinearGradient(0,0,W,H);
-    g.addColorStop(0, hexToRgba(state.theme, 0.09));
-    g.addColorStop(1, '#031018');
-    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-    // decorative halos
-    drawNeonHalo(W*0.78, H*0.08, 160, state.theme, 0.06);
-    drawNeonHalo(W*0.22, H*0.9, 240, '#00d4ff', 0.04);
-  }
-
-  // main card
-  drawRoundedRect(28,28,W-56,H-56,18, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
-  if(state.template !== 'ats'){
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1; ctx.stroke();
-  }
-
-  // left profile area
-  const leftX = 48, leftW = Math.min(360, W*0.34);
-  drawRoundedRect(leftX,48,leftW,H-96,12, state.template==='ats' ? '#ffffff' : 'rgba(255,255,255,0.02)');
-  if(state.template!=='ats'){ ctx.fillStyle = state.theme; ctx.globalAlpha = 0.06; ctx.fillRect(leftX,48,leftW,8); ctx.globalAlpha = 1; }
-
-  // profile photo
-  const cx = leftX + leftW/2, cy = 150, r = 56;
-  if(state.profile.photo && state.template !== 'ats'){
-    const img = state.profile.photo;
-    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r+4,0,Math.PI*2); ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fill();
-    ctx.clip(); ctx.drawImage(img, cx-r, cy-r, r*2, r*2); ctx.restore();
-    ctx.beginPath(); ctx.arc(cx,cy,r+6,0,Math.PI*2); ctx.strokeStyle = state.theme; ctx.lineWidth = 3; ctx.stroke();
-  } else if(state.template === 'ats'){
-    // no photo for ATS by default (render initials inline)
-    ctx.fillStyle = '#000'; ctx.font = '700 18px Inter, sans-serif';
-    ctx.fillText(state.profile.name, leftX + 16, 130);
-  } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle = state.theme; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#eaf0ff'; ctx.font = '700 28px Inter, sans-serif'; ctx.textAlign='center'; ctx.fillText(getInitials(state.profile.name), cx, cy+8); ctx.textAlign='start';
-  }
-
-  // name & headline
-  ctx.fillStyle = state.template==='ats' ? '#0f172a' : '#eaf0ff';
-  ctx.font = state.template==='ats' ? '800 20px Inter, sans-serif' : '800 22px Inter, sans-serif';
-  ctx.fillText(state.profile.name, leftX + 20, 230);
-  ctx.fillStyle = state.template==='ats' ? '#111827' : '#b8c6d9';
-  ctx.font = '500 13px Inter, sans-serif';
-  ctx.fillText(state.profile.headline, leftX + 20, 252);
-
-  // contact block (ATS: left top)
-  ctx.fillStyle = state.template==='ats' ? '#111827' : '#9fb0c9';
-  ctx.font = '500 12px Inter, sans-serif';
-  const contactX = leftX + 20;
-  wrapText(ctx, `Email: ${state.profile.email}`, contactX, 280, leftW - 40, 16);
-  wrapText(ctx, `Phone: ${state.profile.phone}`, contactX, 300, leftW - 40, 16);
-  wrapText(ctx, `Location: ${state.profile.location}`, contactX, 320, leftW - 40, 16);
-  wrapText(ctx, `LinkedIn: ${state.profile.linkedin}`, contactX, 340, leftW - 40, 16);
-
-  // summary (ATS: as text block)
-  ctx.fillStyle = state.template === 'ats' ? '#0f172a' : 'rgba(255,255,255,0.03)';
-  drawRoundedRect(leftX + 12, 380, leftW - 24, 92, 10, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
-  ctx.fillStyle = state.template==='ats' ? '#0b1220' : '#cfe2ff';
-  ctx.font = '14px Inter, sans-serif';
-  wrapText(ctx, state.profile.summary, leftX + 22, 400, leftW - 44, 16);
-
-  // education & skills left column
-  ctx.fillStyle = state.theme; ctx.font = '700 14px Inter, sans-serif';
-  ctx.fillText('Education', leftX + 20, 520);
-  ctx.fillStyle = state.template==='ats' ? '#0b1220' : '#cfe2ff';
-  ctx.font = '500 13px Inter, sans-serif';
-  wrapText(ctx, `${state.education.degree}, ${state.education.school}`, leftX + 20, 540, leftW - 44, 14);
-  ctx.fillStyle = '#9fb0c9'; ctx.font = '12px Inter, sans-serif'; ctx.fillText(state.education.years, leftX + 20, 570);
-
-  // skills
-  ctx.fillStyle = state.theme; ctx.font = '700 14px Inter, sans-serif';
-  ctx.fillText('Skills', leftX + 20, 610);
-  let skillY = 632;
-  state.skills.forEach((s, idx)=>{
-    ctx.fillStyle = state.template==='ats' ? '#111827' : '#cfe2ff';
-    ctx.font = '500 13px Inter, sans-serif'; ctx.fillText(s.name, leftX + 20, skillY);
-    const bx = leftX + 20, bw = leftW - 60, bh = 8;
-    if(state.template === 'ats'){
-      // simple textual percent for ATS
-      ctx.fillStyle = '#111827'; ctx.fillText(`${s.level}%`, leftX + leftW - 40, skillY);
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.03)'; drawRoundedRect(bx, skillY+6, bw, bh, 6, 'rgba(255,255,255,0.03)');
-      ctx.fillStyle = state.theme; drawRoundedRect(bx, skillY+6, (bw * s.level / 100), bh, 6, state.theme);
-      ctx.fillStyle = '#9fb0c9'; ctx.font = '12px Inter, sans-serif';
-      ctx.fillText(`${s.level}%`, leftX + leftW - 30, skillY+14);
-    }
-    skillY += 36;
-  });
-
-  // right experiences column
-  const rightX = leftX + leftW + 20;
-  const rightW = W - rightX - 48;
-  ctx.fillStyle = state.theme; ctx.font = '800 22px Inter, sans-serif'; ctx.fillText('Experience', rightX, 60);
-
-  // two-column card layout
-  const colGap = 16, colW = (rightW - colGap) / 2;
-  let baseY = 96;
-  state.experiences.forEach((exp, i)=>{
-    const top = baseY + i * 170;
-    drawExperienceCard(rightX, top, colW, exp.role, exp.company, exp.years, exp.desc, state.theme);
-    if(exp.co) drawExperienceCard(rightX + colW + colGap, top, colW, exp.co.role, exp.co.company, exp.co.years, exp.co.desc, '#00d4ff');
-    else drawRoundedRect(rightX + colW + colGap, top, colW, 140, 10, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
-  });
-
-  // footer signature
-  ctx.fillStyle = state.template==='ats' ? '#111827' : 'rgba(255,255,255,0.04)';
-  ctx.font = '12px Inter, sans-serif';
-  ctx.fillText('Generated by Top-1 Resume Builder', rightX, H - 40);
+/* ---------- rendering loop / requestRender ---------- */
+let pending = false;
+function requestRender(){
+  if(pending) return;
+  pending = true;
+  setTimeout(()=>{ pending = false; renderCanvas(); fitCanvasToContainer(); }, 0);
 }
-
-function drawExperienceCard(x,y,w,title,company,years,desc,accent){
-  drawRoundedRect(x,y,w,140,10, state.template==='ats' ? '#fff' : 'rgba(255,255,255,0.02)');
-  if(state.template !== 'ats'){ ctx.fillStyle = accent; ctx.globalAlpha = 0.06; ctx.fillRect(x,y,w,6); ctx.globalAlpha = 1; }
-  ctx.fillStyle = state.template==='ats' ? '#0f172a' : '#eaf0ff';
-  ctx.font = '700 14px Inter, sans-serif';
-  wrapText(ctx, title, x + 12, y + 28, w - 28, 16);
-  ctx.fillStyle = state.template==='ats' ? '#111827' : '#9fb0c9';
-  ctx.font = '12px Inter, sans-serif';
-  ctx.fillText(company, x + 12, y + 54);
-  ctx.fillText(years, x + w - 80, y + 54);
-  ctx.fillStyle = state.template==='ats' ? '#0b1220' : '#cfe2ff';
-  ctx.font = '13px Inter, sans-serif';
-  wrapText(ctx, desc, x + 12, y + 74, w - 26, 16);
-}
-
-/* ---------- helpers ---------- */
-function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function getCssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name) || '#7c4dff'; }
-
-/* ---------- scoring display / UI ---------- */
-function computeAndDisplayScore(){
-  const res = computeScore();
-  const pct = res.score;
-  const color = pct >= 80 ? getCssVar('--success') : pct >= 60 ? getCssVar('--warn') : getCssVar('--danger');
-  gaugeEl.style.background = `conic-gradient(${color} 0% ${pct}%, rgba(255,255,255,0.04) ${pct}% 100%)`;
-  gaugeEl.textContent = pct;
-  scoreLabel.textContent = `Score: ${pct} / 100`;
-  const advice = pct >= 85 ? 'Excellent — near Top-1' : pct >= 65 ? 'Good — add metrics & skills' : 'Needs work — follow suggestions';
-  scoreAdvice.textContent = advice;
-  // show suggestions / breakdown
-  const det = res.details;
-  suggestionsEl.innerHTML = `<div><strong>Breakdown</strong></div>
-    <div class="muted" style="margin-top:6px">Completeness: ${det.completeness}% • Experience: ${det.experience}% • Skills: ${det.skills}% • Summary: ${det.summary}% • ATS: ${det.ats}%</div>`;
-  const sugg = generateSuggestionsDetailed();
-  if(sugg.length){
-    suggestionsEl.innerHTML += `<div style="margin-top:8px"><strong>Suggestions</strong></div>`;
-    sugg.forEach(s=> suggestionsEl.innerHTML += `<div style="margin-top:6px">• ${s.text} <button data-code="${s.code}" class="pill" style="margin-left:8px">Apply</button></div>`);
-    suggestionsEl.querySelectorAll('button[data-code]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const code = btn.dataset.code;
-        if(code==='SUMMARY_SHORT') state.profile.summary += ' Passionate leader who delivers measurable outcomes — increased retention by 18%.';
-        if(code==='LACK_METRICS'){ const ex = state.experiences[0]; if(ex && !/\d/.test(ex.desc)) ex.desc += ' Delivered feature used by 150k users and increased activation by 12%.'; }
-        if(code==='FEW_SKILLS') state.skills.push({ id: genId(), name:'System Design', level:72 });
-        if(code==='NO_LINKEDIN') state.profile.linkedin = 'https://linkedin.com/in/yourprofile';
-        if(code==='NO_CONTACT') state.profile.email = state.profile.email || 'you@example.com';
-        renderLists(); requestRender(); computeAndDisplayScore();
-      });
-    });
-  }
-}
-
-/* ---------- ATS HTML export generator ---------- */
-function generateAtsHtml(){
-  // Minimal, semantic HTML for ATS systems
-  const p = state.profile;
-  const edu = state.education;
-  const ex = state.experiences;
-  const skills = state.skills;
-  const escaped = (s)=> escapeHtml(s || '');
-  let html = `
-  <!doctype html>
-  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escaped(p.name)} — Resume</title>
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:28px;line-height:1.4}
-    h1{font-size:20px;margin:0} h2{font-size:14px;margin-top:12px}
-    .muted{color:#444;font-size:13px}
-    .section{margin-top:12px}
-    ul{margin:6px 0 12px 18px}
-  </style>
-  </head><body>
-  <h1>${escaped(p.name)}</h1>
-  <div class="muted">${escaped(p.headline)} • ${escaped(p.location)} • ${escaped(p.email)} • ${escaped(p.phone)} • ${escaped(p.linkedin)}</div>
-  <div class="section"><h2>Summary</h2><div>${escaped(p.summary)}</div></div>
-  <div class="section"><h2>Experience</h2>
-  `;
-  ex.forEach(e=>{
-    html += `<div><strong>${escaped(e.role)}</strong> — ${escaped(e.company)} <span class="muted">${escaped(e.years)}</span><div>${escaped(e.desc)}</div></div>`;
-    if(e.co) html += `<div style="margin-left:12px"><strong>${escaped(e.co.role)}</strong> — ${escaped(e.co.company)} <span class="muted">${escaped(e.co.years)}</span><div>${escaped(e.co.desc)}</div></div>`;
-  });
-  html += `</div><div class="section"><h2>Education</h2><div>${escaped(edu.degree)}, ${escaped(edu.school)} <span class="muted">${escaped(edu.years)}</span></div></div>`;
-  html += `<div class="section"><h2>Skills</h2><div>${skills.map(s=>escapeHtml(s.name)+' ('+s.level+'%)').join(', ')}</div></div>`;
-  html += `</body></html>`;
-  return html;
-}
-
-/* ---------- render loop ---------- */
-let raf = null, needsRender=true;
-function requestRender(){ needsRender=true; if(!raf) raf = requestAnimationFrame(loop); }
-function loop(){ raf = null; if(needsRender){ needsRender=false; state.animTick++; draw(); computeAndDisplayScore(); } }
-renderLists(); requestRender(); computeAndDisplayScore();
-// animate skill fills tick
-setInterval(()=>{ state.animTick++; requestRender(); }, 80);
-
-/* ---------- utility functions ---------- */
-function computeScore(){ /* implemented above as used earlier */ 
-  // call the same method: reuse computeScore defined earlier in code scope (due to hoisting)
-  // For brevity, re-call the computeScore function block by reference:
-  // (We already have computeScore in the global scope above)
-  return (function innerCompute(){
-    // Use the same logic from earlier computeScore closure
-    const weights = { completeness: 30, experience: 25, skills: 15, summary: 15, ats: 15 };
-    let score = 0;
-    const details = {};
-    const reqs = [
-      {k:'name', ok: !!state.profile.name.trim()},
-      {k:'headline', ok: !!state.profile.headline.trim()},
-      {k:'contact', ok: !!(state.profile.email.trim() || state.profile.phone.trim())},
-      {k:'linkedin', ok: !!state.profile.linkedin.trim()},
-      {k:'summary', ok: !!state.profile.summary.trim()},
-      {k:'education', ok: !!(state.education.school.trim() && state.education.degree.trim())},
-      {k:'experience', ok: state.experiences.length>0}
-    ];
-    const okCount = reqs.filter(r=>r.ok).length;
-    const completenessScore = (okCount/reqs.length) * weights.completeness;
-    details.completeness = Math.round(completenessScore);
-    const exCount = state.experiences.length;
-    const exCountFactor = Math.min(exCount,5)/5;
-    let metricsFound = 0, actionFound = 0;
-    const actionVerbs = ['led','managed','improved','increased','reduced','built','launched','designed','developed','optimized','implemented','drove','delivered'];
-    state.experiences.forEach(ex=>{
-      if(/\d+/.test(ex.desc)) metricsFound++;
-      const low=(ex.desc||'').toLowerCase();
-      if(actionVerbs.some(v=>low.includes(v))) actionFound++;
-      if(ex.co && /\d+/.test(ex.co.desc||'')) metricsFound++;
-      if(ex.co && actionVerbs.some(v=> (ex.co.desc||'').toLowerCase().includes(v))) actionFound++;
-    });
-    const metricsFactor = state.experiences.length ? Math.min(metricsFound / state.experiences.length, 1) : 0;
-    const actionFactor = state.experiences.length ? Math.min(actionFound / state.experiences.length, 1) : 0;
-    const experienceScore = ( (exCountFactor*0.5 + metricsFactor*0.3 + actionFactor*0.2) * weights.experience );
-    details.experience = Math.round(experienceScore);
-    const skillCount = state.skills.length;
-    const skillsFactor = Math.min(skillCount / 6, 1);
-    const skillsScore = skillsFactor * weights.skills;
-    details.skills = Math.round(skillsScore);
-    const sum = state.profile.summary.trim();
-    const len = sum.length;
-    let sumFactor = 0;
-    if(len >= 100 && len <= 260) sumFactor = 1;
-    else if(len >= 60) sumFactor = 0.7;
-    else if(len > 0) sumFactor = 0.4;
-    else sumFactor = 0;
-    const sumAction = /(\d+|led|improved|increased|reduced|built|launched|designed|optimized)/i.test(sum) ? 1 : 0;
-    const summaryScore = (0.75 * sumFactor + 0.25 * sumAction) * weights.summary;
-    details.summary = Math.round(summaryScore);
-    let atsFactor = 0;
-    if(state.template === 'ats') atsFactor = 1;
-    else if(state.template === 'top1') atsFactor = 0.9;
-    else atsFactor = 0.6;
-    const photoPenalty = state.profile.photo ? -0.08 : 0;
-    const contactOk = !!(state.profile.email.trim() || state.profile.phone.trim());
-    const linkedOk = !!state.profile.linkedin.trim();
-    let contactBonus = (contactOk && linkedOk) ? 0.08 : (contactOk || linkedOk) ? 0.04 : 0;
-    const atsScore = Math.max(0, (atsFactor + contactBonus + photoPenalty)/1.2) * weights.ats;
-    details.ats = Math.round(atsScore);
-    score = completenessScore + experienceScore + skillsScore + summaryScore + atsScore;
-    const rounded = Math.round(Math.max(0, Math.min(100, score)));
-    return { score: rounded, details, reqs };
-  })();
-}
-
-function generateSuggestionsDetailed(){ /* already defined earlier, reuse */
-  const suggestions = [];
-  const s = computeScore();
-  s.reqs.forEach(r=>{
-    if(!r.ok){
-      if(r.k==='name') suggestions.push({ code:'NO_NAME', text:'Add your full name (required)' });
-      if(r.k==='headline') suggestions.push({ code:'NO_HEADLINE', text:'Add a concise headline (role + focus)' });
-      if(r.k==='contact') suggestions.push({ code:'NO_CONTACT', text:'Add phone or email' });
-      if(r.k==='linkedin') suggestions.push({ code:'NO_LINKEDIN', text:'Add LinkedIn profile URL' });
-      if(r.k==='summary') suggestions.push({ code:'SUMMARY_MISSING', text:'Add a short professional summary (2–4 lines)' });
-      if(r.k==='education') suggestions.push({ code:'NO_EDU', text:'Add education: school & degree' });
-      if(r.k==='experience') suggestions.push({ code:'NO_EXP', text:'Add at least one experience with bullet points and metrics' });
-    }
-  });
-  const metricsMissing = state.experiences.every(ex=> !/\d+/.test(ex.desc));
-  if(metricsMissing) suggestions.push({ code:'LACK_METRICS', text:'Add metrics to at least one experience (numbers, percentages)' });
-  if(state.skills.length < 4) suggestions.push({ code:'FEW_SKILLS', text:'Add more relevant skills (4–8 is ideal)' });
-  const len = state.profile.summary.trim().length;
-  if(len < 80) suggestions.push({ code:'SUMMARY_SHORT', text:'Lengthen summary to 2–4 lines and add a metric or top skill' });
-  if(state.profile.photo && state.template !== 'visual') suggestions.push({ code:'PHOTO_WARNING', text:'Consider removing photo for ATS (optional)' });
-  return suggestions;
-}
-
-/* ---------- ATS HTML generator ---------- */
-function generateAtsHtml(){ /* implemented earlier, reuse logic */
-  const p = state.profile, edu = state.education, ex = state.experiences, skills = state.skills;
-  const escaped = (s)=> escapeHtml(s || '');
-  let html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escaped(p.name)} — Resume</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:28px;line-height:1.4}h1{font-size:20px;margin:0}h2{font-size:14px;margin-top:12px}.muted{color:#444;font-size:13px}.section{margin-top:12px}ul{margin:6px 0 12px 18px}</style></head><body>`;
-  html += `<h1>${escaped(p.name)}</h1><div class="muted">${escaped(p.headline)} • ${escaped(p.location)} • ${escaped(p.email)} • ${escaped(p.phone)} • ${escaped(p.linkedin)}</div>`;
-  html += `<div class="section"><h2>Summary</h2><div>${escaped(p.summary)}</div></div><div class="section"><h2>Experience</h2>`;
-  ex.forEach(e=>{
-    html += `<div><strong>${escaped(e.role)}</strong> — ${escaped(e.company)} <span class="muted">${escaped(e.years)}</span><div>${escaped(e.desc)}</div></div>`;
-    if(e.co) html += `<div style="margin-left:12px"><strong>${escaped(e.co.role)}</strong> — ${escaped(e.co.company)} <span class="muted">${escaped(e.co.years)}</span><div>${escaped(e.co.desc)}</div></div>`;
-  });
-  html += `</div><div class="section"><h2>Education</h2><div>${escaped(edu.degree)}, ${escaped(edu.school)} <span class="muted">${escaped(edu.years)}</span></div></div>`;
-  html += `<div class="section"><h2>Skills</h2><div>${skills.map(s=>escapeHtml(s.name)+' ('+s.level+'%)').join(', ')}</div></div>`;
-  html += `</body></html>`;
-  return html;
-}
-
-/* ---------- simple helpers ---------- */
-function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-/* ensure UI elements sync with state on load */
-function syncUIFromState(){
-  document.getElementById('name').value = state.profile.name;
-  document.getElementById('headline').value = state.profile.headline;
-  document.getElementById('linkedin').value = state.profile.linkedin;
-  document.getElementById('email').value = state.profile.email;
-  document.getElementById('phone').value = state.profile.phone;
-  document.getElementById('location').value = state.profile.location;
-  document.getElementById('summary').value = state.profile.summary;
-  document.getElementById('school').value = state.education.school;
-  document.getElementById('degree').value = state.education.degree;
-  document.getElementById('eduYears').value = state.education.years;
-  document.getElementById('theme').value = state.theme;
-}
-syncUIFromState();
-renderLists();
 requestRender();
+
+/* ---------- Save/Load JSON (localStorage + download/upload) ---------- */
+function saveLocal(){
+  try{
+    localStorage.setItem('resume-builder-data', JSON.stringify(state));
+    alert('Saved locally to browser storage.');
+  }catch(e){ alert('Save failed: ' + e.message); }
+}
+function loadLocal(){
+  const raw = localStorage.getItem('resume-builder-data');
+  if(!raw){ alert('No local save found.'); return; }
+  try{
+    state = JSON.parse(raw);
+    hydrateUI();
+    requestRender();
+  }catch(e){ alert('Failed to load saved data'); }
+}
+function downloadJson(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${(state.profile.name||'resume').replace(/\s+/g,'_')}.json`; a.click(); URL.revokeObjectURL(url);
+}
+importJsonEl.addEventListener('change', (e)=> {
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try{ state = JSON.parse(ev.target.result); hydrateUI(); requestRender(); } catch(err){ alert('Invalid JSON'); }
+  };
+  r.readAsText(file);
+});
+
+/* download PNG and PDF (A4) */
+downloadPNGBtn.addEventListener('click', ()=> {
+  requestRender();
+  setTimeout(()=> {
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `${(state.profile.name||'resume').replace(/\s+/g,'_')}.png`; a.click(); URL.revokeObjectURL(url);
+    }, 'image/png');
+  }, 150);
+});
+
+downloadPDFBtn.addEventListener('click', async ()=> {
+  requestRender();
+  setTimeout(async ()=> {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    // Add as JPEG (smaller)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(dataUrl, 'JPEG', 0, 0, A4_MM_W, A4_MM_H);
+    pdf.save(`${(state.profile.name||'resume').replace(/\s+/g,'_')}.pdf`);
+  }, 220);
+});
+
+/* wire other UI buttons */
+saveLocalBtn.addEventListener('click', saveLocal);
+loadLocalBtn.addEventListener('click', loadLocal);
+exportJsonBtn.addEventListener('click', downloadJson);
+document.getElementById('importJson').addEventListener('change', (e)=>{ /* handled above */ });
+resetBtn.addEventListener('click', ()=>{ if(confirm('Reset to sample content?')) { location.reload(); } });
+
+/* small helper: keep state in sync when lists updated from UI */
+function collectFormState(){
+  state.theme = themeEl.value;
+  state.profile.name = nameEl.value;
+  state.profile.headline = headlineEl.value;
+  state.profile.linkedin = linkedinEl.value;
+  state.profile.email = emailEl.value;
+  state.profile.phone = phoneEl.value;
+  state.profile.location = locationEl.value;
+  state.profile.summary = summaryEl.value;
+  state.education.school = schoolEl.value;
+  state.education.degree = degreeEl.value;
+  state.education.years = eduYearsEl.value;
+  state.coursework = courseworkEl.value;
+  state.projects = projectsEl.value;
+  state.additional = additionalEl.value;
+}
+/* Monitor input changes for state sync */
+document.querySelectorAll('input,textarea,select').forEach(el=>{
+  el.addEventListener('input', ()=>{ collectFormState(); requestRender(); });
+});
+
+/* initial render and fit */
+hydrateUI();
+requestRender();
+fitCanvasToContainer();
+
+
+
 </script>
 </body>
 </html>
